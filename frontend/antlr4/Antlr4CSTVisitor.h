@@ -77,136 +77,118 @@ protected:
     /// @return AST的节点
     std::any visitExpr(MiniCParser::ExprContext * ctx) override;
 
-    ///
     /// @brief 内部产生的非终结符assignStatement的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitAssignStatement(MiniCParser::AssignStatementContext * ctx) override;
 
-    ///
     /// @brief 内部产生的非终结符blockStatement的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitBlockStatement(MiniCParser::BlockStatementContext * ctx) override;
 
-    ///
+    /// @brief 内部产生的非终结符ifStatement的分析
+    /// @param ctx CST上下文
+    /// @return AST的节点
+    std::any visitIfStatement(MiniCParser::IfStatementContext * ctx) override;
+
+    /// @brief 内部产生的非终结符whileStatement的分析
+    /// @param ctx CST上下文
+    /// @return AST的节点
+    std::any visitWhileStatement(MiniCParser::WhileStatementContext * ctx) override;
+
+    /// @brief 内部产生的非终结符breakStatement的分析
+    /// @param ctx CST上下文
+    /// @return AST的节点
+    std::any visitBreakStatement(MiniCParser::BreakStatementContext * ctx) override;
+
+    /// @brief 内部产生的非终结符continueStatement的分析
+    /// @param ctx CST上下文
+    /// @return AST的节点
+    std::any visitContinueStatement(MiniCParser::ContinueStatementContext * ctx) override;
+
     /// @brief 非终结符AddExp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitAddExp(MiniCParser::AddExpContext * ctx) override;
 
-    ///
     /// @brief 非终结符addOp的分析
     /// @param ctx CST上下文
-    /// @return std::any 类型
-    ///
+    /// @return AST的节点
     std::any visitAddOp(MiniCParser::AddOpContext * ctx) override;
 
-    ///
     /// @brief 非终结符unaryExp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitUnaryExp(MiniCParser::UnaryExpContext * ctx) override;
 
-    ///
     /// @brief 非终结符PrimaryExp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitPrimaryExp(MiniCParser::PrimaryExpContext * ctx) override;
 
-    ///
     /// @brief 非终结符LVal的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitLVal(MiniCParser::LValContext * ctx) override;
 
-    ///
     /// @brief 非终结符VarDecl的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitVarDecl(MiniCParser::VarDeclContext * ctx) override;
 
-    ///
     /// @brief 非终结符VarDecl的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitVarDef(MiniCParser::VarDefContext * ctx) override;
 
-    ///
     /// @brief 非终结符BasicType的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitBasicType(MiniCParser::BasicTypeContext * ctx) override;
 
-    ///
     /// @brief 非终结符RealParamList的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitRealParamList(MiniCParser::RealParamListContext * ctx) override;
 
-    ///
     /// @brief 非终结符ExpressionStatement的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitExpressionStatement(MiniCParser::ExpressionStatementContext * context) override;
 
-    ///
     /// @brief 非终结符UnaryOp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitUnaryOp(MiniCParser::UnaryOpContext * ctx) override;
 
-    ///
     /// @brief 非终结符MulExp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitMulExp(MiniCParser::MulExpContext * ctx) override;
 
-    ///
     /// @brief 非终结符mulOp的分析
     /// @param ctx CST上下文
-    /// @return std::any 类型
-    ///
+    /// @return AST的节点
     std::any visitMulOp(MiniCParser::MulOpContext * ctx) override;
 
-    ///
     /// @brief 非终结符LogicalOrExp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitLogicalOrExp(MiniCParser::LogicalOrExpContext * ctx) override;
 
-    ///
     /// @brief 非终结符LogicalAndExp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitLogicalAndExp(MiniCParser::LogicalAndExpContext * ctx) override;
 
-    ///
     /// @brief 非终结符EqualityExp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitEqualityExp(MiniCParser::EqualityExpContext * ctx) override;
 
-    ///
     /// @brief 非终结符RelationalExp的分析
     /// @param ctx CST上下文
-    /// @return std::any AST的节点
-    ///
+    /// @return AST的节点
     std::any visitRelationalExp(MiniCParser::RelationalExpContext * ctx) override;
 };

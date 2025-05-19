@@ -128,6 +128,18 @@ enum class ast_operator_type : int {
     /// @brief 逻辑非运算符 !
     AST_OP_LOGICAL_NOT,
 
+    /// @brief if语句运算符
+    AST_OP_IF,
+
+    /// @brief while语句运算符
+    AST_OP_WHILE,
+
+    /// @brief break语句运算符
+    AST_OP_BREAK,
+
+    /// @brief continue语句运算符
+    AST_OP_CONTINUE,
+
     /// @brief 最大标识符，表示非法运算符
     AST_OP_MAX,
 };

@@ -1,5 +1,5 @@
 
-// Generated from MiniC.g4 by ANTLR 4.12.0
+// Generated from /home/code/CPExperiments/frontend/antlr4/MiniC.g4 by ANTLR 4.12.0
 
 #pragma once
 
@@ -60,6 +60,22 @@ public:
   }
 
   virtual std::any visitExpressionStatement(MiniCParser::ExpressionStatementContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitIfStatement(MiniCParser::IfStatementContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitWhileStatement(MiniCParser::WhileStatementContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitBreakStatement(MiniCParser::BreakStatementContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitContinueStatement(MiniCParser::ContinueStatementContext *ctx) override {
     return visitChildren(ctx);
   }
 

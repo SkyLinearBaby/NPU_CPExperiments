@@ -34,12 +34,16 @@ basicType: T_INT;
 // 变量定义
 varDef: T_ID;
 
-// 目前语句支持return和赋值语句
+// 语句支持return、赋值、if-else、while、break和continue语句
 statement:
-	T_RETURN expr T_SEMICOLON			# returnStatement
-	| lVal T_ASSIGN expr T_SEMICOLON	# assignStatement
-	| block								# blockStatement
-	| expr? T_SEMICOLON					# expressionStatement;
+	T_RETURN expr T_SEMICOLON										# returnStatement
+	| lVal T_ASSIGN expr T_SEMICOLON								# assignStatement
+	| block															# blockStatement
+	| expr? T_SEMICOLON												# expressionStatement
+	| T_IF T_L_PAREN expr T_R_PAREN statement (T_ELSE statement)?	# ifStatement
+	| T_WHILE T_L_PAREN expr T_R_PAREN statement					# whileStatement
+	| T_BREAK T_SEMICOLON											# breakStatement
+	| T_CONTINUE T_SEMICOLON										# continueStatement;
 
 // 表达式文法 expr : AddExp 表达式目前只支持加法与减法运算
 expr: logicalOrExp;
@@ -122,6 +126,11 @@ T_NOT: '!';
 T_RETURN: 'return';
 T_INT: 'int';
 T_VOID: 'void';
+T_IF: 'if';
+T_ELSE: 'else';
+T_WHILE: 'while';
+T_BREAK: 'break';
+T_CONTINUE: 'continue';
 
 T_ID: [a-zA-Z_][a-zA-Z0-9_]*;
 T_DIGIT:
@@ -132,3 +141,5 @@ T_DIGIT:
 
 /* 空白符丢弃 */
 WS: [ \r\n\t]+ -> skip;
+/*忽略注释 */
+LINE_COMMENT: '//' ~[\r\n]* -> skip;

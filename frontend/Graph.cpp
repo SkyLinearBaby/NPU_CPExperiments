@@ -120,8 +120,18 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_LOGICAL_NOT:
             nodeName = "!";
             break;
-            // TODO 这里追加其它类型的结点，返回对应结点的字符串
-
+        case ast_operator_type::AST_OP_IF:
+            nodeName = "if";
+            break;
+        case ast_operator_type::AST_OP_WHILE:
+            nodeName = "while";
+            break;
+        case ast_operator_type::AST_OP_BREAK:
+            nodeName = "break";
+            break;
+        case ast_operator_type::AST_OP_CONTINUE:
+            nodeName = "continue";
+            break;
         default:
             nodeName = "unknown";
             break;

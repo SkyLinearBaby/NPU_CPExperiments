@@ -160,7 +160,11 @@ std::any MiniCCSTVisitor::visitStatement(MiniCParser::StatementContext * ctx)
     // 识别的文法产生式：statement: T_ID T_ASSIGN expr T_SEMICOLON  # assignStatement
     // | T_RETURN expr T_SEMICOLON # returnStatement
     // | block  # blockStatement
-    // | expr ? T_SEMICOLON #expressionStatement;
+    // | expr ? T_SEMICOLON #expressionStatement
+    // | T_IF T_L_PAREN expr T_R_PAREN statement (T_ELSE statement)?  # ifStatement
+    // | T_WHILE T_L_PAREN expr T_R_PAREN statement  # whileStatement
+    // | T_BREAK T_SEMICOLON  # breakStatement
+    // | T_CONTINUE T_SEMICOLON  # continueStatement
     if (Instanceof(assignCtx, MiniCParser::AssignStatementContext *, ctx)) {
         return visitAssignStatement(assignCtx);
     } else if (Instanceof(returnCtx, MiniCParser::ReturnStatementContext *, ctx)) {
@@ -169,6 +173,14 @@ std::any MiniCCSTVisitor::visitStatement(MiniCParser::StatementContext * ctx)
         return visitBlockStatement(blockCtx);
     } else if (Instanceof(exprCtx, MiniCParser::ExpressionStatementContext *, ctx)) {
         return visitExpressionStatement(exprCtx);
+    } else if (Instanceof(ifCtx, MiniCParser::IfStatementContext *, ctx)) {
+        return visitIfStatement(ifCtx);
+    } else if (Instanceof(whileCtx, MiniCParser::WhileStatementContext *, ctx)) {
+        return visitWhileStatement(whileCtx);
+    } else if (Instanceof(breakCtx, MiniCParser::BreakStatementContext *, ctx)) {
+        return visitBreakStatement(breakCtx);
+    } else if (Instanceof(continueCtx, MiniCParser::ContinueStatementContext *, ctx)) {
+        return visitContinueStatement(continueCtx);
     }
 
     return nullptr;
@@ -228,12 +240,12 @@ std::any MiniCCSTVisitor::visitLogicalOrExp(MiniCParser::LogicalOrExpContext * c
     ast_node *left, *right;
     auto opsCtxVec = ctx->T_OR();
 
-    for (int k = 0; k < (int)opsCtxVec.size(); k++) {
+    for (int k = 0; k < (int) opsCtxVec.size(); k++) {
         if (k == 0) {
             left = std::any_cast<ast_node *>(visitLogicalAndExp(ctx->logicalAndExp()[k]));
         }
         right = std::any_cast<ast_node *>(visitLogicalAndExp(ctx->logicalAndExp()[k + 1]));
-        
+
         // 创建逻辑或节点，实现短路求值
         left = ast_node::New(ast_operator_type::AST_OP_LOGICAL_OR, left, right, nullptr);
     }
@@ -251,12 +263,12 @@ std::any MiniCCSTVisitor::visitLogicalAndExp(MiniCParser::LogicalAndExpContext *
     ast_node *left, *right;
     auto opsCtxVec = ctx->T_AND();
 
-    for (int k = 0; k < (int)opsCtxVec.size(); k++) {
+    for (int k = 0; k < (int) opsCtxVec.size(); k++) {
         if (k == 0) {
             left = std::any_cast<ast_node *>(visitEqualityExp(ctx->equalityExp()[k]));
         }
         right = std::any_cast<ast_node *>(visitEqualityExp(ctx->equalityExp()[k + 1]));
-        
+
         // 创建逻辑与节点，实现短路求值
         left = ast_node::New(ast_operator_type::AST_OP_LOGICAL_AND, left, right, nullptr);
     }
@@ -281,14 +293,14 @@ std::any MiniCCSTVisitor::visitEqualityExp(MiniCParser::EqualityExpContext * ctx
             left = std::any_cast<ast_node *>(visitRelationalExp(ctx->relationalExp()[k]));
         }
         right = std::any_cast<ast_node *>(visitRelationalExp(ctx->relationalExp()[k + 1]));
-        
+
         ast_operator_type op;
-        if (k < (int)eqOps.size()) {
+        if (k < (int) eqOps.size()) {
             op = ast_operator_type::AST_OP_EQ;
         } else {
             op = ast_operator_type::AST_OP_NEQ;
         }
-        
+
         left = ast_node::New(op, left, right, nullptr);
     }
 
@@ -314,18 +326,18 @@ std::any MiniCCSTVisitor::visitRelationalExp(MiniCParser::RelationalExpContext *
             left = std::any_cast<ast_node *>(visitAddExp(ctx->addExp()[k]));
         }
         right = std::any_cast<ast_node *>(visitAddExp(ctx->addExp()[k + 1]));
-        
+
         ast_operator_type op;
-        if (k < (int)ltOps.size()) {
+        if (k < (int) ltOps.size()) {
             op = ast_operator_type::AST_OP_LT;
-        } else if (k < (int)(ltOps.size() + gtOps.size())) {
+        } else if (k < (int) (ltOps.size() + gtOps.size())) {
             op = ast_operator_type::AST_OP_GT;
-        } else if (k < (int)(ltOps.size() + gtOps.size() + leOps.size())) {
+        } else if (k < (int) (ltOps.size() + gtOps.size() + leOps.size())) {
             op = ast_operator_type::AST_OP_LE;
         } else {
             op = ast_operator_type::AST_OP_GE;
         }
-        
+
         left = ast_node::New(op, left, right, nullptr);
     }
 
@@ -612,4 +624,54 @@ std::any MiniCCSTVisitor::visitExpressionStatement(MiniCParser::ExpressionStatem
         // 直接返回空指针，需要再把语句加入到语句块时要注意判断，空语句不要加入
         return nullptr;
     }
+}
+
+std::any MiniCCSTVisitor::visitIfStatement(MiniCParser::IfStatementContext * ctx)
+{
+    // 识别文法产生式：T_IF T_L_PAREN expr T_R_PAREN statement (T_ELSE statement)?
+
+    // 条件表达式
+    auto condExpr = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
+
+    // if分支语句
+    auto thenStmt = std::any_cast<ast_node *>(visitStatement(ctx->statement(0)));
+
+    // else分支语句（如果存在）
+    ast_node * elseStmt = nullptr;
+    if (ctx->T_ELSE()) {
+        elseStmt = std::any_cast<ast_node *>(visitStatement(ctx->statement(1)));
+    }
+
+    // 创建if语句节点，其孩子为条件表达式、then语句和else语句（如果存在）
+    return create_contain_node(ast_operator_type::AST_OP_IF, condExpr, thenStmt, elseStmt);
+}
+
+std::any MiniCCSTVisitor::visitWhileStatement(MiniCParser::WhileStatementContext * ctx)
+{
+    // 识别文法产生式：T_WHILE T_L_PAREN expr T_R_PAREN statement
+
+    // 循环条件表达式
+    auto condExpr = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
+
+    // 循环体语句
+    auto bodyStmt = std::any_cast<ast_node *>(visitStatement(ctx->statement()));
+
+    // 创建while语句节点，其孩子为条件表达式和循环体语句
+    return create_contain_node(ast_operator_type::AST_OP_WHILE, condExpr, bodyStmt);
+}
+
+std::any MiniCCSTVisitor::visitBreakStatement(MiniCParser::BreakStatementContext * ctx)
+{
+    // 识别文法产生式：T_BREAK T_SEMICOLON
+
+    // 创建break语句节点，没有孩子节点
+    return create_contain_node(ast_operator_type::AST_OP_BREAK);
+}
+
+std::any MiniCCSTVisitor::visitContinueStatement(MiniCParser::ContinueStatementContext * ctx)
+{
+    // 识别文法产生式：T_CONTINUE T_SEMICOLON
+
+    // 创建continue语句节点，没有孩子节点
+    return create_contain_node(ast_operator_type::AST_OP_CONTINUE);
 }
