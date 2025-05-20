@@ -78,6 +78,10 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
 
     /* 编译单元 */
     ast2ir_handlers[ast_operator_type::AST_OP_COMPILE_UNIT] = &IRGenerator::ir_compile_unit;
+
+    /* if语句 */
+    ast2ir_handlers[ast_operator_type::AST_OP_IF] = &IRGenerator::ir_if;
+    ast2ir_handlers[ast_operator_type::AST_OP_IF_ELSE] = &IRGenerator::ir_if_else;
 }
 
 /// @brief 遍历抽象语法树产生线性IR，保存到IRCode中
@@ -671,7 +675,7 @@ bool IRGenerator::ir_return(ast_node * node)
     }
 
     // 跳转到函数的尾部出口指令上
-    node->blockInsts.addInst(new GotoInstruction(currentFunc, currentFunc->getExitLabel()));
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, static_cast<LabelInstruction*>(currentFunc->getExitLabel())));
 
     return true;
 }
@@ -1028,5 +1032,102 @@ bool IRGenerator::ir_ne(ast_node * node)
     // 设置当前节点的值为指令的结果
     node->val = inst;
 
+    return true;
+}
+
+/// @brief if语句AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_if(ast_node * node)
+{
+    // 获取当前函数
+    Function * currentFunc = module->getCurrentFunction();
+    
+    // if语句包含两个子节点：条件表达式和if体
+    ast_node * cond_node = node->sons[0];
+    ast_node * if_body = node->sons[1];
+    
+    // 生成条件表达式的IR
+    ast_node * cond = ir_visit_ast_node(cond_node);
+    if (!cond) {
+        return false;
+    }
+    
+    // 创建三个标签：真体、假体、出口
+    LabelInstruction * true_label = new LabelInstruction(currentFunc);
+    LabelInstruction * false_label = new LabelInstruction(currentFunc);
+    LabelInstruction * exit_label = new LabelInstruction(currentFunc);
+    
+    // 添加条件判断和跳转指令
+    node->blockInsts.addInst(cond->blockInsts);
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, cond->val, true_label, false_label));
+    
+    // 添加真体标签和if体
+    node->blockInsts.addInst(true_label);
+    if (!ir_visit_ast_node(if_body)) {
+        return false;
+    }
+    node->blockInsts.addInst(if_body->blockInsts);
+    
+    // 添加跳转到出口的指令
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, exit_label));
+    
+    // 添加假体标签
+    node->blockInsts.addInst(false_label);
+    
+    // 添加出口标签
+    node->blockInsts.addInst(exit_label);
+    
+    return true;
+}
+
+/// @brief if-else语句AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_if_else(ast_node * node)
+{
+    // 获取当前函数
+    Function * currentFunc = module->getCurrentFunction();
+    
+    // if-else语句包含三个子节点：条件表达式、if体和else体
+    ast_node * cond_node = node->sons[0];
+    ast_node * if_body = node->sons[1];
+    ast_node * else_body = node->sons[2];
+    
+    // 生成条件表达式的IR
+    ast_node * cond = ir_visit_ast_node(cond_node);
+    if (!cond) {
+        return false;
+    }
+    
+    // 创建三个标签：真体、假体、出口
+    LabelInstruction * true_label = new LabelInstruction(currentFunc);
+    LabelInstruction * false_label = new LabelInstruction(currentFunc);
+    LabelInstruction * exit_label = new LabelInstruction(currentFunc);
+    
+    // 添加条件判断和跳转指令
+    node->blockInsts.addInst(cond->blockInsts);
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, cond->val, true_label, false_label));
+    
+    // 添加真体标签和if体
+    node->blockInsts.addInst(true_label);
+    if (!ir_visit_ast_node(if_body)) {
+        return false;
+    }
+    node->blockInsts.addInst(if_body->blockInsts);
+    
+    // 添加跳转到出口的指令
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, exit_label));
+    
+    // 添加假体标签和else体
+    node->blockInsts.addInst(false_label);
+    if (!ir_visit_ast_node(else_body)) {
+        return false;
+    }
+    node->blockInsts.addInst(else_body->blockInsts);
+    
+    // 添加出口标签
+    node->blockInsts.addInst(exit_label);
+    
     return true;
 }

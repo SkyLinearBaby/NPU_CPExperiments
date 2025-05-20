@@ -131,6 +131,9 @@ enum class ast_operator_type : int {
     /// @brief if语句运算符
     AST_OP_IF,
 
+    /// @brief if-else语句运算符
+    AST_OP_IF_ELSE,
+
     /// @brief while语句运算符
     AST_OP_WHILE,
 

@@ -24,6 +24,7 @@
 #include "LocalVariable.h"
 #include "MemVariable.h"
 #include "IRCode.h"
+#include "Instructions/LabelInstruction.h"
 
 ///
 /// @brief 描述函数信息的类，是全局静态存储，其Value的类型为FunctionType
@@ -69,7 +70,7 @@ public:
 
     /// @brief 获取函数出口指令
     /// @return 出口Label指令
-    Instruction * getExitLabel();
+    LabelInstruction * getExitLabel();
 
     /// @brief 设置函数返回值变量
     /// @param val 返回值变量，要求必须是局部变量，不能是临时变量

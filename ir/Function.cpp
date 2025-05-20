@@ -156,9 +156,9 @@ void Function::setExitLabel(Instruction * inst)
 
 /// @brief 获取函数出口指令
 /// @return 出口Label指令
-Instruction * Function::getExitLabel()
+LabelInstruction * Function::getExitLabel()
 {
-    return exitLabel;
+    return static_cast<LabelInstruction*>(exitLabel);
 }
 
 /// @brief 设置函数返回值变量
