@@ -50,6 +50,7 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     ast2ir_handlers[ast_operator_type::AST_OP_MUL] = &IRGenerator::ir_mul;
     ast2ir_handlers[ast_operator_type::AST_OP_DIV] = &IRGenerator::ir_div;
     ast2ir_handlers[ast_operator_type::AST_OP_MOD] = &IRGenerator::ir_mod;
+    ast2ir_handlers[ast_operator_type::AST_OP_LT] = &IRGenerator::ir_lt;
     ast2ir_handlers[ast_operator_type::AST_OP_UNARY_MINUS] = &IRGenerator::ir_unary_minus;
 
     /* 语句 */
@@ -781,6 +782,46 @@ bool IRGenerator::ir_unary_minus(ast_node * node)
     node->blockInsts.addInst(subInst);
 
     node->val = subInst;
+
+    return true;
+}
+
+/// @brief 整数小于比较AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_lt(ast_node * node)
+{
+    // 获取左右操作数
+    ast_node * left = node->sons[0];
+    ast_node * right = node->sons[1];
+
+    // 遍历左右操作数
+    left = ir_visit_ast_node(left);
+    right = ir_visit_ast_node(right);
+
+    if (!left || !right) {
+        return false;
+    }
+
+    // 获取当前函数
+    Function * func = module->getCurrentFunction();
+    if (!func) {
+        return false;
+    }
+
+    // 创建小于比较指令
+    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_LT, left->val, right->val, IntegerType::getTypeBool());
+    if (!inst) {
+        return false;
+    }
+
+    // 将指令加入到当前节点的指令列表中
+    node->blockInsts.addInst(left->blockInsts);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(inst);
+
+    // 设置当前节点的值为指令的结果
+    node->val = inst;
 
     return true;
 }

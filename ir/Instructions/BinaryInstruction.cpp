@@ -66,6 +66,11 @@ void BinaryInstruction::toString(std::string & str)
             str = getIRName() + " = mod " + src1->getIRName() + "," + src2->getIRName();
             break;
 
+        case IRInstOperator::IRINST_OP_ICMP_LT:
+            // 小于比较指令，二元运算
+            str = getIRName() + " = icmp lt " + src1->getIRName() + "," + src2->getIRName();
+            break;
+
         default:
             // 未知指令
             Instruction::toString(str);

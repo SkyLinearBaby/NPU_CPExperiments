@@ -49,6 +49,9 @@ enum class IRInstOperator : std::int8_t {
     /// @brief 整数的求余指令，二元运算
     IRINST_OP_MOD_I,
 
+    /// @brief 整数的小于比较指令，二元运算
+    IRINST_OP_ICMP_LT,
+
     /// @brief 赋值指令，一元运算
     IRINST_OP_ASSIGN,
 
