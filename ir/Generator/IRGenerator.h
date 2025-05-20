@@ -95,6 +95,31 @@ protected:
     /// @return 翻译是否成功，true：成功，false：失败
     bool ir_lt(ast_node * node);
 
+    /// @brief 整数大于比较AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_gt(ast_node * node);
+
+    /// @brief 整数大于等于比较AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_ge(ast_node * node);
+
+    /// @brief 整数小于等于比较AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_le(ast_node * node);
+
+    /// @brief 整数等于比较AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_eq(ast_node * node);
+
+    /// @brief 整数不等于比较AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_ne(ast_node * node);
+
     /// @brief 单目负运算符AST节点翻译成线性中间IR
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败

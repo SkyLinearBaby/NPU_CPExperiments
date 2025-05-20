@@ -51,6 +51,11 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     ast2ir_handlers[ast_operator_type::AST_OP_DIV] = &IRGenerator::ir_div;
     ast2ir_handlers[ast_operator_type::AST_OP_MOD] = &IRGenerator::ir_mod;
     ast2ir_handlers[ast_operator_type::AST_OP_LT] = &IRGenerator::ir_lt;
+    ast2ir_handlers[ast_operator_type::AST_OP_GT] = &IRGenerator::ir_gt;
+    ast2ir_handlers[ast_operator_type::AST_OP_GE] = &IRGenerator::ir_ge;
+    ast2ir_handlers[ast_operator_type::AST_OP_LE] = &IRGenerator::ir_le;
+    ast2ir_handlers[ast_operator_type::AST_OP_EQ] = &IRGenerator::ir_eq;
+    ast2ir_handlers[ast_operator_type::AST_OP_NEQ] = &IRGenerator::ir_ne;
     ast2ir_handlers[ast_operator_type::AST_OP_UNARY_MINUS] = &IRGenerator::ir_unary_minus;
 
     /* 语句 */
@@ -811,6 +816,206 @@ bool IRGenerator::ir_lt(ast_node * node)
 
     // 创建小于比较指令
     BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_LT, left->val, right->val, IntegerType::getTypeBool());
+    if (!inst) {
+        return false;
+    }
+
+    // 将指令加入到当前节点的指令列表中
+    node->blockInsts.addInst(left->blockInsts);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(inst);
+
+    // 设置当前节点的值为指令的结果
+    node->val = inst;
+
+    return true;
+}
+
+/// @brief 整数大于比较AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_gt(ast_node * node)
+{
+    // 获取左右操作数
+    ast_node * left = node->sons[0];
+    ast_node * right = node->sons[1];
+
+    // 遍历左右操作数
+    left = ir_visit_ast_node(left);
+    right = ir_visit_ast_node(right);
+
+    if (!left || !right) {
+        return false;
+    }
+
+    // 获取当前函数
+    Function * func = module->getCurrentFunction();
+    if (!func) {
+        return false;
+    }
+
+    // 创建大于比较指令
+    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_GT, left->val, right->val, IntegerType::getTypeBool());
+    if (!inst) {
+        return false;
+    }
+
+    // 将指令加入到当前节点的指令列表中
+    node->blockInsts.addInst(left->blockInsts);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(inst);
+
+    // 设置当前节点的值为指令的结果
+    node->val = inst;
+
+    return true;
+}
+
+/// @brief 整数大于等于比较AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_ge(ast_node * node)
+{
+    // 获取左右操作数
+    ast_node * left = node->sons[0];
+    ast_node * right = node->sons[1];
+
+    // 遍历左右操作数
+    left = ir_visit_ast_node(left);
+    right = ir_visit_ast_node(right);
+
+    if (!left || !right) {
+        return false;
+    }
+
+    // 获取当前函数
+    Function * func = module->getCurrentFunction();
+    if (!func) {
+        return false;
+    }
+
+    // 创建大于等于比较指令
+    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_GE, left->val, right->val, IntegerType::getTypeBool());
+    if (!inst) {
+        return false;
+    }
+
+    // 将指令加入到当前节点的指令列表中
+    node->blockInsts.addInst(left->blockInsts);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(inst);
+
+    // 设置当前节点的值为指令的结果
+    node->val = inst;
+
+    return true;
+}
+
+/// @brief 整数小于等于比较AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_le(ast_node * node)
+{
+    // 获取左右操作数
+    ast_node * left = node->sons[0];
+    ast_node * right = node->sons[1];
+
+    // 遍历左右操作数
+    left = ir_visit_ast_node(left);
+    right = ir_visit_ast_node(right);
+
+    if (!left || !right) {
+        return false;
+    }
+
+    // 获取当前函数
+    Function * func = module->getCurrentFunction();
+    if (!func) {
+        return false;
+    }
+
+    // 创建小于等于比较指令
+    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_LE, left->val, right->val, IntegerType::getTypeBool());
+    if (!inst) {
+        return false;
+    }
+
+    // 将指令加入到当前节点的指令列表中
+    node->blockInsts.addInst(left->blockInsts);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(inst);
+
+    // 设置当前节点的值为指令的结果
+    node->val = inst;
+
+    return true;
+}
+
+/// @brief 整数等于比较AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_eq(ast_node * node)
+{
+    // 获取左右操作数
+    ast_node * left = node->sons[0];
+    ast_node * right = node->sons[1];
+
+    // 遍历左右操作数
+    left = ir_visit_ast_node(left);
+    right = ir_visit_ast_node(right);
+
+    if (!left || !right) {
+        return false;
+    }
+
+    // 获取当前函数
+    Function * func = module->getCurrentFunction();
+    if (!func) {
+        return false;
+    }
+
+    // 创建等于比较指令
+    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_EQ, left->val, right->val, IntegerType::getTypeBool());
+    if (!inst) {
+        return false;
+    }
+
+    // 将指令加入到当前节点的指令列表中
+    node->blockInsts.addInst(left->blockInsts);
+    node->blockInsts.addInst(right->blockInsts);
+    node->blockInsts.addInst(inst);
+
+    // 设置当前节点的值为指令的结果
+    node->val = inst;
+
+    return true;
+}
+
+/// @brief 整数不等于比较AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_ne(ast_node * node)
+{
+    // 获取左右操作数
+    ast_node * left = node->sons[0];
+    ast_node * right = node->sons[1];
+
+    // 遍历左右操作数
+    left = ir_visit_ast_node(left);
+    right = ir_visit_ast_node(right);
+
+    if (!left || !right) {
+        return false;
+    }
+
+    // 获取当前函数
+    Function * func = module->getCurrentFunction();
+    if (!func) {
+        return false;
+    }
+
+    // 创建不等于比较指令
+    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_NE, left->val, right->val, IntegerType::getTypeBool());
     if (!inst) {
         return false;
     }

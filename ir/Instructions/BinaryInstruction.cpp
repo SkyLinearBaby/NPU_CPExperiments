@@ -71,6 +71,31 @@ void BinaryInstruction::toString(std::string & str)
             str = getIRName() + " = icmp lt " + src1->getIRName() + "," + src2->getIRName();
             break;
 
+        case IRInstOperator::IRINST_OP_ICMP_GT:
+            // 大于比较指令，二元运算
+            str = getIRName() + " = icmp gt " + src1->getIRName() + "," + src2->getIRName();
+            break;
+
+        case IRInstOperator::IRINST_OP_ICMP_GE:
+            // 大于等于比较指令，二元运算
+            str = getIRName() + " = icmp ge " + src1->getIRName() + "," + src2->getIRName();
+            break;
+
+        case IRInstOperator::IRINST_OP_ICMP_LE:
+            // 小于等于比较指令，二元运算
+            str = getIRName() + " = icmp le " + src1->getIRName() + "," + src2->getIRName();
+            break;
+
+        case IRInstOperator::IRINST_OP_ICMP_EQ:
+            // 等于比较指令，二元运算
+            str = getIRName() + " = icmp eq " + src1->getIRName() + "," + src2->getIRName();
+            break;
+
+        case IRInstOperator::IRINST_OP_ICMP_NE:
+            // 不等于比较指令，二元运算
+            str = getIRName() + " = icmp ne " + src1->getIRName() + "," + src2->getIRName();
+            break;
+
         default:
             // 未知指令
             Instruction::toString(str);

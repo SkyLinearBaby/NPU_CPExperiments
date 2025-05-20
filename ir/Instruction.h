@@ -52,6 +52,21 @@ enum class IRInstOperator : std::int8_t {
     /// @brief 整数的小于比较指令，二元运算
     IRINST_OP_ICMP_LT,
 
+    /// @brief 整数的大于比较指令，二元运算
+    IRINST_OP_ICMP_GT,
+
+    /// @brief 整数的大于等于比较指令，二元运算
+    IRINST_OP_ICMP_GE,
+
+    /// @brief 整数的小于等于比较指令，二元运算
+    IRINST_OP_ICMP_LE,
+
+    /// @brief 整数的等于比较指令，二元运算
+    IRINST_OP_ICMP_EQ,
+
+    /// @brief 整数的不等于比较指令，二元运算
+    IRINST_OP_ICMP_NE,
+
     /// @brief 赋值指令，一元运算
     IRINST_OP_ASSIGN,
 
