@@ -20,9 +20,6 @@
 
 #include "AST.h"
 #include "Module.h"
-#include "Value.h"
-#include "Instructions/BinaryInstruction.h"
-#include "Values/ConstInt.h"
 
 /// @brief AST遍历产生线性IR类
 class IRGenerator {

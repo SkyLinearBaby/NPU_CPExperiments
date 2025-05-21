@@ -18,6 +18,7 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 
 #define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
 
@@ -27,7 +28,7 @@ public:
     ///
     /// @brief 类型ID
     ///
-    enum TypeID {
+    enum TypeID : std::uint8_t {
         // PrimitiveTypes
         FloatTyID, ///< 32-bit floating point type
         VoidTyID,  ///< type with no size

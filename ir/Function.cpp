@@ -106,7 +106,6 @@ void Function::toString(std::string & str)
         // 局部变量和临时变量需要输出declare语句
         str += "\tdeclare " + var->getType()->toString() + " " + var->getIRName();
 
-        std::string extraStr;
         std::string realName = var->getName();
         if (!realName.empty()) {
             str += " ; " + std::to_string(var->getScopeLevel()) + ":" + realName;
@@ -158,7 +157,7 @@ void Function::setExitLabel(Instruction * inst)
 /// @return 出口Label指令
 LabelInstruction * Function::getExitLabel()
 {
-    return static_cast<LabelInstruction*>(exitLabel);
+    return static_cast<LabelInstruction *>(exitLabel);
 }
 
 /// @brief 设置函数返回值变量

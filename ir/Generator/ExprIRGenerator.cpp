@@ -100,11 +100,12 @@ namespace IR {
                                                                     const std::string & falseLabel)
     {
         // 对于逻辑非，我们只需要交换true和false标签
-        auto result = generateRelationalExpr("", operand, nullptr, falseLabel, trueLabel);
+
+        auto result = generateRelationalExpr("", operand, nullptr, trueLabel, falseLabel);
 
         // 注意：这里我们交换了结果中的标签
-        result.trueLabel = trueLabel;
-        result.falseLabel = falseLabel;
+        result.trueLabel = falseLabel;
+        result.falseLabel = trueLabel;
 
         return result;
     }

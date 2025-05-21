@@ -18,6 +18,7 @@
 
 #include "Constant.h"
 #include "IRConstant.h"
+#include <cstdint>
 
 ///
 /// @brief 代表全局对象，都是常量。
@@ -35,23 +36,24 @@
 /// 例如把3赋值给全局变量a，a就是一个GlobalValue，而3是一个Constant。
 /// 2. GlobalValue 需要管理链接属性（Linkage），而 Constant 不需要。
 /// 全局变量和函数通常涉及链接（Linkage）和可见性（Visibility），而普通的 Constant 不需要这些属性。
-/// 3. GlobalValue 可能是可变的。Constant 表示的是永远不会改变的值，但 GlobalValue（尤其是 GlobalVariable）可能是可变的。
+/// 3. GlobalValue 可能是可变的。Constant 表示的是永远不会改变的值，但 GlobalValue（尤其是
+/// GlobalVariable）可能是可变的。
 /// 4. GlobalValue 需要支持不同的存储模型。如静态存储、线程本地存储（TLS）、动态库导入/导出等。
-/// 5. 方便优化器和代码生成。普通常量（可以在编译期内联，不占用全局存储），GlobalVariable 可能需要加载它的地址才能访问它的值。
-/// GlobalValue 可能需要地址加载，而 Constant 可以直接内联
+/// 5. 方便优化器和代码生成。普通常量（可以在编译期内联，不占用全局存储），GlobalVariable
+/// 可能需要加载它的地址才能访问它的值。 GlobalValue 可能需要地址加载，而 Constant 可以直接内联
 ///
 class GlobalValue : public Constant {
 
     ///
     /// @brief 用于区分函数或变量是否是static，或者外部都可见
     ///
-    enum LinkageTypes {
+    enum LinkageTypes : std::uint8_t {
         ExternalLinkage = 0, ///< Externally visible function
         InternalLinkage,     ///< Rename collisions when linking (static functions).
     };
 
     /// 全局对象的作用域，可见，或者只对文件可见，也就是隐藏的
-    enum VisibilityTypes {
+    enum VisibilityTypes : std::uint8_t {
         DefaultVisibility = 0, ///< The GlobalValue is visible
         HiddenVisibility,      ///< The GlobalValue is hidden
         ProtectedVisibility    ///< The GlobalValue is protected
