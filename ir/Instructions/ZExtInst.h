@@ -2,9 +2,9 @@
 /// @file ZExtInst.h
 /// @brief 零扩展指令
 ///
-/// @author zenglj (zenglj@live.com)
+/// @author wangbo
 /// @version 1.0
-/// @date 2024-11-23
+/// @date 2025-05-21
 ///
 /// @copyright Copyright (c) 2024
 ///

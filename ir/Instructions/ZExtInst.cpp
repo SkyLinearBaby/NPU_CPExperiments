@@ -2,9 +2,9 @@
 /// @file ZExtInst.cpp
 /// @brief 零扩展指令
 ///
-/// @author zenglj (zenglj@live.com)
+/// @author wangbo
 /// @version 1.0
-/// @date 2024-11-23
+/// @date 2025-05-21
 ///
 /// @copyright Copyright (c) 2024
 ///
@@ -30,6 +30,6 @@ ZExtInst::ZExtInst(Function * _func, Value * _srcVal, Type * _type)
 /// @param str 转换后的字符串
 void ZExtInst::toString(std::string & str)
 {
-    Value *src = getOperand(0);
+    Value * src = getOperand(0);
     str = getIRName() + " = zext " + src->getIRName() + " to " + getType()->toString();
 }

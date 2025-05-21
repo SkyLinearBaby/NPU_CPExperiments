@@ -2,11 +2,11 @@
 /// @file TypeConverter.cpp
 /// @brief 类型转换工具类
 ///
-/// @author zenglj (zenglj@live.com)
+/// @author wangbo
 /// @version 1.0
-/// @date 2024-11-23
+/// @date 2025-05-21
 ///
-/// @copyright Copyright (c) 2024
+/// @copyright Copyright (c) 2025
 ///
 /// @par 修改日志:
 /// <table>
