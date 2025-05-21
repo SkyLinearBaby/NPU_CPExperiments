@@ -17,6 +17,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <stack>
 
 #include "AST.h"
 #include "Module.h"
@@ -188,7 +189,32 @@ protected:
     /// @brief AST节点运算符与动作函数关联的映射表
     std::unordered_map<ast_operator_type, ast2ir_handler_t> ast2ir_handlers;
 
+    /// @brief while循环语句AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_while(ast_node * node);
+
+    /// @brief break语句AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_break(ast_node * node);
+
+    /// @brief continue语句AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_continue(ast_node * node);
+
 private:
+    /// @brief 循环上下文结构
+    struct LoopContext {
+        LabelInstruction * entryLabel; // 循环入口标签
+        LabelInstruction * bodyLabel;  // 循环体标签
+        LabelInstruction * exitLabel;  // 循环出口标签
+    };
+
+    /// @brief 循环栈，用于管理嵌套循环
+    std::stack<LoopContext> loopStack;
+
     /// @brief 抽象语法树的根
     ast_node * root;
 

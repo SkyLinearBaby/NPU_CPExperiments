@@ -81,6 +81,11 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     /* if语句 */
     ast2ir_handlers[ast_operator_type::AST_OP_IF] = &IRGenerator::ir_if;
     ast2ir_handlers[ast_operator_type::AST_OP_IF_ELSE] = &IRGenerator::ir_if_else;
+
+    // 注册while循环相关处理函数
+    ast2ir_handlers[ast_operator_type::AST_OP_WHILE] = &IRGenerator::ir_while;
+    ast2ir_handlers[ast_operator_type::AST_OP_BREAK] = &IRGenerator::ir_break;
+    ast2ir_handlers[ast_operator_type::AST_OP_CONTINUE] = &IRGenerator::ir_continue;
 }
 
 /// @brief 遍历抽象语法树产生线性IR，保存到IRCode中
@@ -1177,5 +1182,81 @@ bool IRGenerator::ir_if_else(ast_node * node)
     // 添加出口标签
     node->blockInsts.addInst(exit_label);
 
+    return true;
+}
+
+bool IRGenerator::ir_while(ast_node * node)
+{
+    // 获取当前函数
+    Function * currentFunc = module->getCurrentFunction();
+
+    // while语句包含两个子节点：条件表达式和循环体
+    ast_node * cond_node = node->sons[0];
+    ast_node * body_node = node->sons[1];
+
+    // 创建三个标签：入口、循环体、出口
+    LabelInstruction * entryLabel = new LabelInstruction(currentFunc);
+    LabelInstruction * bodyLabel = new LabelInstruction(currentFunc);
+    LabelInstruction * exitLabel = new LabelInstruction(currentFunc);
+
+    // 将当前循环上下文压入栈
+    LoopContext loopCtx = {entryLabel, bodyLabel, exitLabel};
+    loopStack.push(loopCtx);
+
+    // 添加入口标签
+    node->blockInsts.addInst(entryLabel);
+
+    // 生成条件表达式的IR
+    ast_node * cond = ir_visit_ast_node(cond_node);
+    if (!cond) {
+        loopStack.pop();
+        return false;
+    }
+
+    // 添加条件判断和跳转指令
+    node->blockInsts.addInst(cond->blockInsts);
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, cond->val, bodyLabel, exitLabel));
+
+    // 添加循环体标签和循环体
+    node->blockInsts.addInst(bodyLabel);
+    if (!ir_visit_ast_node(body_node)) {
+        loopStack.pop();
+        return false;
+    }
+    node->blockInsts.addInst(body_node->blockInsts);
+
+    // 添加跳回入口的指令
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, entryLabel));
+
+    // 添加出口标签
+    node->blockInsts.addInst(exitLabel);
+
+    // 弹出循环上下文
+    loopStack.pop();
+
+    return true;
+}
+
+bool IRGenerator::ir_break(ast_node * node)
+{
+    if (loopStack.empty()) {
+        // 错误：break语句不在循环内
+        return false;
+    }
+
+    // 跳转到当前循环的出口标签
+    node->blockInsts.addInst(new GotoInstruction(module->getCurrentFunction(), loopStack.top().exitLabel));
+    return true;
+}
+
+bool IRGenerator::ir_continue(ast_node * node)
+{
+    if (loopStack.empty()) {
+        // 错误：continue语句不在循环内
+        return false;
+    }
+
+    // 跳转到当前循环的入口标签
+    node->blockInsts.addInst(new GotoInstruction(module->getCurrentFunction(), loopStack.top().entryLabel));
     return true;
 }
