@@ -96,6 +96,11 @@ void BinaryInstruction::toString(std::string & str)
             str = getIRName() + " = icmp ne " + src1->getIRName() + "," + src2->getIRName();
             break;
 
+        case IRInstOperator::IRINST_OP_LOGICAL_AND:
+            // 逻辑与指令，二元运算
+            str = getIRName() + " = and " + src1->getIRName() + "," + src2->getIRName();
+            break;
+
         default:
             // 未知指令
             Instruction::toString(str);

@@ -67,6 +67,9 @@ enum class IRInstOperator : std::int8_t {
     /// @brief 整数的不等于比较指令，二元运算
     IRINST_OP_ICMP_NE,
 
+    /// @brief 逻辑与指令，二元运算
+    IRINST_OP_LOGICAL_AND,
+
     /// @brief 赋值指令，一元运算
     IRINST_OP_ASSIGN,
 

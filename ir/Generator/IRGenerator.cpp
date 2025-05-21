@@ -56,6 +56,7 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     ast2ir_handlers[ast_operator_type::AST_OP_EQ] = &IRGenerator::ir_eq;
     ast2ir_handlers[ast_operator_type::AST_OP_NEQ] = &IRGenerator::ir_ne;
     ast2ir_handlers[ast_operator_type::AST_OP_UNARY_MINUS] = &IRGenerator::ir_unary_minus;
+    ast2ir_handlers[ast_operator_type::AST_OP_LOGICAL_AND] = &IRGenerator::ir_logical_and;
 
     /* 语句 */
     ast2ir_handlers[ast_operator_type::AST_OP_ASSIGN] = &IRGenerator::ir_assign;
@@ -1258,5 +1259,68 @@ bool IRGenerator::ir_continue(ast_node * node)
 
     // 跳转到当前循环的入口标签
     node->blockInsts.addInst(new GotoInstruction(module->getCurrentFunction(), loopStack.top().entryLabel));
+    return true;
+}
+/// @brief 逻辑与AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_logical_and(ast_node * node)
+{
+    // 获取左右操作数
+    ast_node * left = node->sons[0];
+    ast_node * right = node->sons[1];
+
+    // 获取当前函数
+    Function * currentFunc = module->getCurrentFunction();
+    if (!currentFunc) {
+        return false;
+    }
+
+    // 创建标签
+    LabelInstruction * eval_right_label = new LabelInstruction(currentFunc);
+    LabelInstruction * false_label = new LabelInstruction(currentFunc);
+    LabelInstruction * exit_label = new LabelInstruction(currentFunc);
+
+    // 创建结果变量
+    node->val = module->newVarValue(IntegerType::getTypeInt());
+
+    // 生成左操作数的IR
+    ast_node * left_result = ir_visit_ast_node(left);
+    if (!left_result) {
+        return false;
+    }
+    node->blockInsts.addInst(left_result->blockInsts);
+
+    // 如果左操作数为假，跳转到 false_label；否则跳转到 eval_right_label
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, left_result->val, eval_right_label, false_label));
+
+    // eval_right_label: 计算右操作数
+    node->blockInsts.addInst(eval_right_label);
+    ast_node * right_result = ir_visit_ast_node(right);
+    if (!right_result) {
+        return false;
+    }
+    node->blockInsts.addInst(right_result->blockInsts);
+
+    // 如果右操作数为假，跳转到 false_label
+    // 否则直接赋值为 true，并跳转到 exit
+    auto true_val = module->newConstInt(1);
+    LabelInstruction * assign_true_label = new LabelInstruction(currentFunc);
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, right_result->val, assign_true_label, false_label));
+
+    // assign_true_label：两个都为 true，赋值为 1
+    node->blockInsts.addInst(assign_true_label);
+    node->blockInsts.addInst(new MoveInstruction(currentFunc, node->val, true_val));
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, exit_label));
+
+    // false_label：任一为 false，赋值为 0
+    node->blockInsts.addInst(false_label);
+    auto false_val = module->newConstInt(0);
+    node->blockInsts.addInst(new MoveInstruction(currentFunc, node->val, false_val));
+    node->blockInsts.addInst(new GotoInstruction(currentFunc, exit_label));
+
+    // 统一出口
+    node->blockInsts.addInst(exit_label);
+
     return true;
 }
