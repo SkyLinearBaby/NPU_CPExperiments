@@ -28,17 +28,17 @@ namespace IR {
         }
 
         // 获取操作数
-        std::shared_ptr<Value> getLeftOperand() const
+        std::shared_ptr<Value> getLeftOperand()
         {
-            return operands[0];
+            return std::shared_ptr<Value>(getOperand(0));
         }
-        std::shared_ptr<Value> getRightOperand() const
+        std::shared_ptr<Value> getRightOperand()
         {
-            return operands[1];
+            return std::shared_ptr<Value>(getOperand(1));
         }
 
         // LLVM IR 格式输出
-        std::string toString() const override;
+        void toString(std::string & str);
 
     private:
         Predicate pred;

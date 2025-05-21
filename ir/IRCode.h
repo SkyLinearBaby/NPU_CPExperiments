@@ -26,6 +26,8 @@ class InterCode {
 protected:
     /// @brief 指令块的指令序列
     std::vector<Instruction *> code;
+    /// @brief 当前基本块标签
+    std::string currentBasicBlock;
 
 public:
     /// @brief 构造函数
@@ -48,4 +50,11 @@ public:
 
     /// @brief 删除所有指令
     void Delete();
+
+    /// @brief 创建基本块
+    /// @param label 基本块标签
+    void createBasicBlock(const std::string & label);
+
+    /// @brief 设置当前基本块标签
+    void setCurrentBasicBlock(const std::string & label);
 };

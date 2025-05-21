@@ -63,3 +63,13 @@ void InterCode::Delete()
 
     code.clear();
 }
+
+void InterCode::createBasicBlock(const std::string & label)
+{
+    setCurrentBasicBlock(label);
+}
+
+void InterCode::setCurrentBasicBlock(const std::string & label)
+{
+    currentBasicBlock = label;
+}

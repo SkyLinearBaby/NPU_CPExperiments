@@ -23,7 +23,7 @@ namespace IR {
             std::string falseLabel;       // 条件为假时跳转的标签
         };
 
-        ExprIRGenerator(IRCode & irCode);
+        ExprIRGenerator(Function * func, InterCode & irCode);
 
         // 生成关系运算符的IR
         ExprResult generateRelationalExpr(const std::string & op,
@@ -67,7 +67,8 @@ namespace IR {
         std::shared_ptr<Value> intToBool(std::shared_ptr<Value> intValue);
 
     private:
-        IRCode & irCode;
+        Function * func;
+        InterCode & irCode;
         int labelCounter = 0;
 
         // 生成唯一的标签名

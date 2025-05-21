@@ -1,13 +1,13 @@
 #include "ExprIRGenerator.h"
 #include "../Instructions/CmpInst.h"
-#include "../Instructions/BranchInst.h"
+#include "../Instructions/GotoInstruction.h"
 #include "../Instructions/ZExtInst.h"
 #include "../Instructions/TruncInst.h"
 #include "../Types/IntegerType.h"
 
 namespace IR {
 
-    ExprIRGenerator::ExprIRGenerator(IRCode & irCode) : irCode(irCode)
+    ExprIRGenerator::ExprIRGenerator(Function * func, InterCode & irCode) : func(func), irCode(irCode)
     {}
 
     std::string ExprIRGenerator::generateUniqueLabel(const std::string & prefix)
@@ -22,15 +22,15 @@ namespace IR {
         return label;
     }
 
-    ExprResult ExprIRGenerator::generateRelationalExpr(const std::string & op,
-                                                       std::shared_ptr<Value> left,
-                                                       std::shared_ptr<Value> right,
-                                                       const std::string & trueLabel,
-                                                       const std::string & falseLabel)
+    ExprIRGenerator::ExprResult ExprIRGenerator::generateRelationalExpr(const std::string & op,
+                                                                        std::shared_ptr<Value> left,
+                                                                        std::shared_ptr<Value> right,
+                                                                        const std::string & trueLabel,
+                                                                        const std::string & falseLabel)
     {
         // 创建比较指令
         auto cmpInst = std::make_shared<CmpInst>(op, left, right);
-        irCode.addInstruction(cmpInst);
+        irCode.addInst(cmpInst.get());
 
         ExprResult result;
         result.value = cmpInst;
@@ -45,10 +45,10 @@ namespace IR {
         return result;
     }
 
-    ExprResult ExprIRGenerator::generateLogicalAnd(std::shared_ptr<Value> left,
-                                                   std::shared_ptr<Value> right,
-                                                   const std::string & trueLabel,
-                                                   const std::string & falseLabel)
+    ExprIRGenerator::ExprResult ExprIRGenerator::generateLogicalAnd(std::shared_ptr<Value> left,
+                                                                    std::shared_ptr<Value> right,
+                                                                    const std::string & trueLabel,
+                                                                    const std::string & falseLabel)
     {
         // 创建中间标签
         std::string midLabel = createBasicBlock("and.right");
@@ -70,10 +70,10 @@ namespace IR {
         return result;
     }
 
-    ExprResult ExprIRGenerator::generateLogicalOr(std::shared_ptr<Value> left,
-                                                  std::shared_ptr<Value> right,
-                                                  const std::string & trueLabel,
-                                                  const std::string & falseLabel)
+    ExprIRGenerator::ExprResult ExprIRGenerator::generateLogicalOr(std::shared_ptr<Value> left,
+                                                                   std::shared_ptr<Value> right,
+                                                                   const std::string & trueLabel,
+                                                                   const std::string & falseLabel)
     {
         // 创建中间标签
         std::string midLabel = createBasicBlock("or.right");
@@ -95,9 +95,9 @@ namespace IR {
         return result;
     }
 
-    ExprResult ExprIRGenerator::generateLogicalNot(std::shared_ptr<Value> operand,
-                                                   const std::string & trueLabel,
-                                                   const std::string & falseLabel)
+    ExprIRGenerator::ExprResult ExprIRGenerator::generateLogicalNot(std::shared_ptr<Value> operand,
+                                                                    const std::string & trueLabel,
+                                                                    const std::string & falseLabel)
     {
         // 对于逻辑非，我们只需要交换true和false标签
         auto result = generateRelationalExpr("", operand, nullptr, falseLabel, trueLabel);
@@ -113,21 +113,21 @@ namespace IR {
                                              const std::string & trueLabel,
                                              const std::string & falseLabel)
     {
-        auto brInst = std::make_shared<BranchInst>(condition, trueLabel, falseLabel);
-        irCode.addInstruction(brInst);
+        auto brInst = std::make_shared<GotoInstruction>(func, condition.get(), trueLabel, falseLabel);
+        irCode.addInst(brInst.get());
     }
 
     void ExprIRGenerator::generateBranch(const std::string & label)
     {
-        auto brInst = std::make_shared<BranchInst>(label);
-        irCode.addInstruction(brInst);
+        auto brInst = std::make_shared<GotoInstruction>(func, label);
+        irCode.addInst(brInst.get());
     }
 
     std::shared_ptr<Value> ExprIRGenerator::boolToInt(std::shared_ptr<Value> boolValue)
     {
         auto i32Type = std::make_shared<IntegerType>(32);
         auto zextInst = std::make_shared<ZExtInst>(boolValue, i32Type);
-        irCode.addInstruction(zextInst);
+        irCode.addInst(zextInst.get());
         return zextInst;
     }
 
@@ -135,7 +135,7 @@ namespace IR {
     {
         auto i1Type = std::make_shared<IntegerType>(1);
         auto truncInst = std::make_shared<TruncInst>(intValue, i1Type);
-        irCode.addInstruction(truncInst);
+        irCode.addInst(truncInst.get());
         return truncInst;
     }
 

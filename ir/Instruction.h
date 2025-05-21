@@ -76,6 +76,12 @@ enum class IRInstOperator : std::int8_t {
     /// @brief 实参ARG指令，单目运算
     IRINST_OP_ARG,
 
+    /// @brief 截断指令（整型到布尔型）
+    IRINST_OP_TRUNC,
+
+    /// @brief 零扩展指令
+    IRINST_OP_ZEXT,
+
     /* 后续可追加其他的IR指令 */
 
     /// @brief 最大指令码，也是无效指令
