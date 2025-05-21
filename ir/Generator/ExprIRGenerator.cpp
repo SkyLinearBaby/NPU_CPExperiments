@@ -114,28 +114,37 @@ namespace IR {
                                              const std::string & trueLabel,
                                              const std::string & falseLabel)
     {
-        auto brInst = std::make_shared<GotoInstruction>(func, condition.get(), trueLabel, falseLabel);
+        // 获取或创建 true 标签指令
+        auto trueLabelInst = irCode.getOrCreateLabel(trueLabel);
+
+        // 获取或创建 false 标签指令
+        auto falseLabelInst = irCode.getOrCreateLabel(falseLabel);
+
+        // 创建条件跳转指令
+        auto brInst = std::make_shared<GotoInstruction>(func, condition.get(), trueLabelInst, falseLabelInst);
         irCode.addInst(brInst.get());
     }
 
     void ExprIRGenerator::generateBranch(const std::string & label)
     {
-        auto brInst = std::make_shared<GotoInstruction>(func, label);
+        // 获取或创建标签指令
+        auto labelInst = irCode.getOrCreateLabel(label);
+
+        // 创建无条件跳转指令
+        auto brInst = std::make_shared<GotoInstruction>(func, labelInst);
         irCode.addInst(brInst.get());
     }
 
     std::shared_ptr<Value> ExprIRGenerator::boolToInt(std::shared_ptr<Value> boolValue)
     {
-        auto i32Type = std::make_shared<IntegerType>(32);
-        auto zextInst = std::make_shared<ZExtInst>(boolValue, i32Type);
+        auto zextInst = std::make_shared<ZExtInst>(func, boolValue.get(), IntegerType::getTypeInt());
         irCode.addInst(zextInst.get());
         return zextInst;
     }
 
     std::shared_ptr<Value> ExprIRGenerator::intToBool(std::shared_ptr<Value> intValue)
     {
-        auto i1Type = std::make_shared<IntegerType>(1);
-        auto truncInst = std::make_shared<TruncInst>(intValue, i1Type);
+        auto truncInst = std::make_shared<TruncInst>(func, intValue.get(), IntegerType::getTypeBool());
         irCode.addInst(truncInst.get());
         return truncInst;
     }

@@ -73,3 +73,21 @@ void InterCode::setCurrentBasicBlock(const std::string & label)
 {
     currentBasicBlock = label;
 }
+
+LabelInstruction * InterCode::getOrCreateLabel(const std::string & label)
+{
+    // 遍历所有指令，查找是否已存在该标签
+    for (auto inst: code) {
+        if (auto labelInst = dynamic_cast<LabelInstruction *>(inst)) {
+            if (labelInst->getIRName() == label) {
+                return labelInst;
+            }
+        }
+    }
+
+    // 如果不存在，创建新的标签指令
+    auto labelInst = new LabelInstruction(nullptr);
+    labelInst->setIRName(label);
+    addInst(labelInst);
+    return labelInst;
+}

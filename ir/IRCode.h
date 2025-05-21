@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "Instruction.h"
+#include "Instructions/LabelInstruction.h"
 
 /// @brief 中间IR指令序列管理类
 class InterCode {
@@ -57,4 +58,9 @@ public:
 
     /// @brief 设置当前基本块标签
     void setCurrentBasicBlock(const std::string & label);
+
+    /// @brief 获取或创建标签指令
+    /// @param label 标签名
+    /// @return LabelInstruction* 标签指令
+    LabelInstruction * getOrCreateLabel(const std::string & label);
 };
