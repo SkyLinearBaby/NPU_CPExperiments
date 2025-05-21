@@ -367,7 +367,6 @@ bool IRGenerator::ir_block(ast_node * node)
 
     std::vector<ast_node *>::iterator pIter;
     for (pIter = node->sons.begin(); pIter != node->sons.end(); ++pIter) {
-
         // 遍历Block的每个语句，进行显示或者运算
         ast_node * temp = ir_visit_ast_node(*pIter);
         if (!temp) {
@@ -375,6 +374,14 @@ bool IRGenerator::ir_block(ast_node * node)
         }
 
         node->blockInsts.addInst(temp->blockInsts);
+
+        // 只有表达式语句、return、函数调用等才传递val，普通赋值语句不传递val
+        if (temp->val && ((*pIter)->node_type == ast_operator_type::AST_OP_RETURN ||
+                          (*pIter)->node_type == ast_operator_type::AST_OP_FUNC_CALL)) {
+            node->val = temp->val;
+        } else {
+            node->val = nullptr;
+        }
     }
 
     // 离开作用域
@@ -641,41 +648,43 @@ bool IRGenerator::ir_assign(ast_node * node)
 bool IRGenerator::ir_return(ast_node * node)
 {
     ast_node * right = nullptr;
+    Function * currentFunc = module->getCurrentFunction();
 
     // return语句可能没有没有表达式，也可能有，因此这里必须进行区分判断
     if (!node->sons.empty()) {
-
         ast_node * son_node = node->sons[0];
 
         // 返回的表达式的指令保存在right节点中
         right = ir_visit_ast_node(son_node);
         if (!right) {
-
             // 某个变量没有定值
             return false;
         }
     }
 
-    // 这里只处理整型的数据，如需支持实数，则需要针对类型进行处理
-    Function * currentFunc = module->getCurrentFunction();
-
     // 返回值存在时则移动指令到node中
     if (right) {
-
         // 创建临时变量保存IR的值，以及线性IR指令
         node->blockInsts.addInst(right->blockInsts);
 
-        // 返回值赋值到函数返回值变量上，然后跳转到函数的尾部
-        node->blockInsts.addInst(new MoveInstruction(currentFunc, currentFunc->getReturnValue(), right->val));
+        // 返回值赋值到函数返回值变量上
+        if (currentFunc->getReturnValue()) {
+            node->blockInsts.addInst(new MoveInstruction(currentFunc, currentFunc->getReturnValue(), right->val));
+        }
 
         node->val = right->val;
     } else {
-        // 没有返回值
+        // 没有返回值，设置为0
+        if (currentFunc->getReturnValue()) {
+            node->blockInsts.addInst(
+                new MoveInstruction(currentFunc, currentFunc->getReturnValue(), module->newConstInt(0)));
+        }
         node->val = nullptr;
     }
 
     // 跳转到函数的尾部出口指令上
-    node->blockInsts.addInst(new GotoInstruction(currentFunc, static_cast<LabelInstruction*>(currentFunc->getExitLabel())));
+    node->blockInsts.addInst(
+        new GotoInstruction(currentFunc, static_cast<LabelInstruction *>(currentFunc->getExitLabel())));
 
     return true;
 }
@@ -819,7 +828,11 @@ bool IRGenerator::ir_lt(ast_node * node)
     }
 
     // 创建小于比较指令
-    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_LT, left->val, right->val, IntegerType::getTypeBool());
+    BinaryInstruction * inst = new BinaryInstruction(func,
+                                                     IRInstOperator::IRINST_OP_ICMP_LT,
+                                                     left->val,
+                                                     right->val,
+                                                     IntegerType::getTypeBool());
     if (!inst) {
         return false;
     }
@@ -859,7 +872,11 @@ bool IRGenerator::ir_gt(ast_node * node)
     }
 
     // 创建大于比较指令
-    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_GT, left->val, right->val, IntegerType::getTypeBool());
+    BinaryInstruction * inst = new BinaryInstruction(func,
+                                                     IRInstOperator::IRINST_OP_ICMP_GT,
+                                                     left->val,
+                                                     right->val,
+                                                     IntegerType::getTypeBool());
     if (!inst) {
         return false;
     }
@@ -899,7 +916,11 @@ bool IRGenerator::ir_ge(ast_node * node)
     }
 
     // 创建大于等于比较指令
-    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_GE, left->val, right->val, IntegerType::getTypeBool());
+    BinaryInstruction * inst = new BinaryInstruction(func,
+                                                     IRInstOperator::IRINST_OP_ICMP_GE,
+                                                     left->val,
+                                                     right->val,
+                                                     IntegerType::getTypeBool());
     if (!inst) {
         return false;
     }
@@ -939,7 +960,11 @@ bool IRGenerator::ir_le(ast_node * node)
     }
 
     // 创建小于等于比较指令
-    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_LE, left->val, right->val, IntegerType::getTypeBool());
+    BinaryInstruction * inst = new BinaryInstruction(func,
+                                                     IRInstOperator::IRINST_OP_ICMP_LE,
+                                                     left->val,
+                                                     right->val,
+                                                     IntegerType::getTypeBool());
     if (!inst) {
         return false;
     }
@@ -979,7 +1004,11 @@ bool IRGenerator::ir_eq(ast_node * node)
     }
 
     // 创建等于比较指令
-    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_EQ, left->val, right->val, IntegerType::getTypeBool());
+    BinaryInstruction * inst = new BinaryInstruction(func,
+                                                     IRInstOperator::IRINST_OP_ICMP_EQ,
+                                                     left->val,
+                                                     right->val,
+                                                     IntegerType::getTypeBool());
     if (!inst) {
         return false;
     }
@@ -1019,7 +1048,11 @@ bool IRGenerator::ir_ne(ast_node * node)
     }
 
     // 创建不等于比较指令
-    BinaryInstruction * inst = new BinaryInstruction(func, IRInstOperator::IRINST_OP_ICMP_NE, left->val, right->val, IntegerType::getTypeBool());
+    BinaryInstruction * inst = new BinaryInstruction(func,
+                                                     IRInstOperator::IRINST_OP_ICMP_NE,
+                                                     left->val,
+                                                     right->val,
+                                                     IntegerType::getTypeBool());
     if (!inst) {
         return false;
     }
@@ -1042,42 +1075,42 @@ bool IRGenerator::ir_if(ast_node * node)
 {
     // 获取当前函数
     Function * currentFunc = module->getCurrentFunction();
-    
+
     // if语句包含两个子节点：条件表达式和if体
     ast_node * cond_node = node->sons[0];
     ast_node * if_body = node->sons[1];
-    
+
     // 生成条件表达式的IR
     ast_node * cond = ir_visit_ast_node(cond_node);
     if (!cond) {
         return false;
     }
-    
+
     // 创建三个标签：真体、假体、出口
     LabelInstruction * true_label = new LabelInstruction(currentFunc);
     LabelInstruction * false_label = new LabelInstruction(currentFunc);
     LabelInstruction * exit_label = new LabelInstruction(currentFunc);
-    
+
     // 添加条件判断和跳转指令
     node->blockInsts.addInst(cond->blockInsts);
     node->blockInsts.addInst(new GotoInstruction(currentFunc, cond->val, true_label, false_label));
-    
+
     // 添加真体标签和if体
     node->blockInsts.addInst(true_label);
     if (!ir_visit_ast_node(if_body)) {
         return false;
     }
     node->blockInsts.addInst(if_body->blockInsts);
-    
+
     // 添加跳转到出口的指令
     node->blockInsts.addInst(new GotoInstruction(currentFunc, exit_label));
-    
+
     // 添加假体标签
     node->blockInsts.addInst(false_label);
-    
+
     // 添加出口标签
     node->blockInsts.addInst(exit_label);
-    
+
     return true;
 }
 
@@ -1088,46 +1121,62 @@ bool IRGenerator::ir_if_else(ast_node * node)
 {
     // 获取当前函数
     Function * currentFunc = module->getCurrentFunction();
-    
+
     // if-else语句包含三个子节点：条件表达式、if体和else体
     ast_node * cond_node = node->sons[0];
     ast_node * if_body = node->sons[1];
     ast_node * else_body = node->sons[2];
-    
+
     // 生成条件表达式的IR
     ast_node * cond = ir_visit_ast_node(cond_node);
     if (!cond) {
         return false;
     }
-    
+
     // 创建三个标签：真体、假体、出口
     LabelInstruction * true_label = new LabelInstruction(currentFunc);
     LabelInstruction * false_label = new LabelInstruction(currentFunc);
     LabelInstruction * exit_label = new LabelInstruction(currentFunc);
-    
+
     // 添加条件判断和跳转指令
     node->blockInsts.addInst(cond->blockInsts);
     node->blockInsts.addInst(new GotoInstruction(currentFunc, cond->val, true_label, false_label));
-    
+
     // 添加真体标签和if体
     node->blockInsts.addInst(true_label);
     if (!ir_visit_ast_node(if_body)) {
         return false;
     }
     node->blockInsts.addInst(if_body->blockInsts);
-    
+
+    // 保存if体的返回值到统一的返回值变量
+    if (currentFunc->getReturnValue() && if_body->val) {
+        node->blockInsts.addInst(new MoveInstruction(currentFunc, currentFunc->getReturnValue(), if_body->val));
+    }
+
     // 添加跳转到出口的指令
     node->blockInsts.addInst(new GotoInstruction(currentFunc, exit_label));
-    
+
     // 添加假体标签和else体
     node->blockInsts.addInst(false_label);
     if (!ir_visit_ast_node(else_body)) {
         return false;
     }
+
+    // 确保else体的指令被正确添加到IR中
     node->blockInsts.addInst(else_body->blockInsts);
-    
+
+    // 合并if/else体的val，保证if-else节点的val不为空
+    if (if_body->val) {
+        node->val = if_body->val;
+    } else if (else_body->val) {
+        node->val = else_body->val;
+    } else {
+        node->val = nullptr;
+    }
+
     // 添加出口标签
     node->blockInsts.addInst(exit_label);
-    
+
     return true;
 }

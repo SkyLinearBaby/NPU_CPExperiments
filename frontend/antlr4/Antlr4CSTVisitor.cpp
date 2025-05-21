@@ -643,7 +643,11 @@ std::any MiniCCSTVisitor::visitIfStatement(MiniCParser::IfStatementContext * ctx
     }
 
     // 创建if语句节点，其孩子为条件表达式、then语句和else语句（如果存在）
-    return create_contain_node(ast_operator_type::AST_OP_IF, condExpr, thenStmt, elseStmt);
+    if (elseStmt) {
+        return create_contain_node(ast_operator_type::AST_OP_IF_ELSE, condExpr, thenStmt, elseStmt);
+    } else {
+        return create_contain_node(ast_operator_type::AST_OP_IF, condExpr, thenStmt);
+    }
 }
 
 std::any MiniCCSTVisitor::visitWhileStatement(MiniCParser::WhileStatementContext * ctx)
