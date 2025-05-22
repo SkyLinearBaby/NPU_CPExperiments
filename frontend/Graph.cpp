@@ -63,6 +63,9 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_VAR_DECL:
             nodeName = "var-decl";
             break;
+        case ast_operator_type::AST_OP_VAR_INIT:
+            nodeName = "var-init";
+            break;
         case ast_operator_type::AST_OP_DECL_STMT:
             nodeName = "decl-stmt";
             break;

@@ -580,6 +580,19 @@ std::any MiniCCSTVisitor::visitVarDef(MiniCParser::VarDefContext * ctx)
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
 
     return ast_node::New(varId, lineNo);
+    // 创建变量ID节点
+    ast_node * id_node = ast_node::New(varId, lineNo);
+
+    // 如果有初始化表达式
+    if (ctx->expr()) {
+        // 创建初始化表达式节点
+        ast_node * init_node = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
+
+        // 创建一个AST_OP_VAR_INIT类型的节点，其子节点为变量ID和初始化表达式
+        return ast_node::New(ast_operator_type::AST_OP_VAR_INIT, id_node, init_node, nullptr);
+    }
+
+    return id_node;
 }
 
 std::any MiniCCSTVisitor::visitBasicType(MiniCParser::BasicTypeContext * ctx)

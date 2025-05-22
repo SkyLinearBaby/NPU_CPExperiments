@@ -32,7 +32,7 @@ varDecl: basicType varDef (T_COMMA varDef)* T_SEMICOLON;
 basicType: T_INT;
 
 // 变量定义
-varDef: T_ID;
+varDef: T_ID (T_ASSIGN expr)?;
 
 // 语句支持return、赋值、if-else、while、break和continue语句
 statement:

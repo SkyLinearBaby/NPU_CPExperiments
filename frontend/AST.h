@@ -80,6 +80,9 @@ enum class ast_operator_type : int {
     /// @brief 变量声明语句
     AST_OP_DECL_STMT,
 
+    /// @brief 变量初始化
+    AST_OP_VAR_INIT,
+
     /// @brief 变量声明
     AST_OP_VAR_DECL,
 
