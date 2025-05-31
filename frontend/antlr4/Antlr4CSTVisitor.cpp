@@ -109,23 +109,27 @@ std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext * ctx)
     nameNode->name = funcName;
     funcDefNode->insert_son_node(nameNode);
 
-    // 3. 函数体节点（包含形参和block）
-    auto * funcBodyNode = create_contain_node(ast_operator_type::AST_OP_BLOCK);
+    // 3. 形参列表节点
+    ast_node * formalParamsNode = nullptr;
     if (ctx->formalParamList()) {
-        auto * formalParamsNode = create_contain_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS);
+        formalParamsNode = create_contain_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS);
         for (auto * paramCtx: ctx->formalParamList()->formalParam()) {
             auto * paramNode = std::any_cast<ast_node *>(visitFormalParam(paramCtx));
             if (paramNode) {
                 formalParamsNode->insert_son_node(paramNode);
             }
         }
-        funcBodyNode->insert_son_node(formalParamsNode);
+    } else {
+        formalParamsNode = create_contain_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS);
     }
+    funcDefNode->insert_son_node(formalParamsNode);
+
+    // 4. 函数体节点
     auto * bodyNode = std::any_cast<ast_node *>(visitBlock(ctx->block()));
-    if (bodyNode) {
-        funcBodyNode->insert_son_node(bodyNode);
+    if (!bodyNode) {
+        bodyNode = create_contain_node(ast_operator_type::AST_OP_BLOCK);
     }
-    funcDefNode->insert_son_node(funcBodyNode);
+    funcDefNode->insert_son_node(bodyNode);
 
     return funcDefNode;
 }
