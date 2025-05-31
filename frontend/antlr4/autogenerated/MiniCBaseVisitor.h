@@ -1,5 +1,5 @@
 
-// Generated from /home/code/CPExperiments/frontend/antlr4/MiniC.g4 by ANTLR 4.12.0
+// Generated from /home/code/NPU_CPExperiments/frontend/antlr4/MiniC.g4 by ANTLR 4.12.0
 
 #pragma once
 
@@ -132,6 +132,14 @@ public:
   }
 
   virtual std::any visitLVal(MiniCParser::LValContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitFormalParamList(MiniCParser::FormalParamListContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitFormalParam(MiniCParser::FormalParamContext *ctx) override {
     return visitChildren(ctx);
   }
 

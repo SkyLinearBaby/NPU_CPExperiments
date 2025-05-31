@@ -1,5 +1,5 @@
 
-// Generated from /home/code/CPExperiments/frontend/antlr4/MiniC.g4 by ANTLR 4.12.0
+// Generated from /home/code/NPU_CPExperiments/frontend/antlr4/MiniC.g4 by ANTLR 4.12.0
 
 #pragma once
 
@@ -78,6 +78,10 @@ public:
     virtual std::any visitRealParamList(MiniCParser::RealParamListContext *context) = 0;
 
     virtual std::any visitLVal(MiniCParser::LValContext *context) = 0;
+
+    virtual std::any visitFormalParamList(MiniCParser::FormalParamListContext *context) = 0;
+
+    virtual std::any visitFormalParam(MiniCParser::FormalParamContext *context) = 0;
 
 
 };

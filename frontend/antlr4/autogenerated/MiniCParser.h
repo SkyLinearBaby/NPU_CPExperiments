@@ -1,5 +1,5 @@
 
-// Generated from /home/code/CPExperiments/frontend/antlr4/MiniC.g4 by ANTLR 4.12.0
+// Generated from /home/code/NPU_CPExperiments/frontend/antlr4/MiniC.g4 by ANTLR 4.12.0
 
 #pragma once
 
@@ -26,7 +26,8 @@ public:
     RuleStatement = 8, RuleExpr = 9, RuleLogicalOrExp = 10, RuleLogicalAndExp = 11, 
     RuleEqualityExp = 12, RuleRelationalExp = 13, RuleAddExp = 14, RuleAddOp = 15, 
     RuleMulExp = 16, RuleMulOp = 17, RuleUnaryExp = 18, RuleUnaryOp = 19, 
-    RulePrimaryExp = 20, RuleRealParamList = 21, RuleLVal = 22
+    RulePrimaryExp = 20, RuleRealParamList = 21, RuleLVal = 22, RuleFormalParamList = 23, 
+    RuleFormalParam = 24
   };
 
   explicit MiniCParser(antlr4::TokenStream *input);
@@ -68,7 +69,9 @@ public:
   class UnaryOpContext;
   class PrimaryExpContext;
   class RealParamListContext;
-  class LValContext; 
+  class LValContext;
+  class FormalParamListContext;
+  class FormalParamContext; 
 
   class  CompileUnitContext : public antlr4::ParserRuleContext {
   public:
@@ -91,11 +94,13 @@ public:
   public:
     FuncDefContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *T_INT();
     antlr4::tree::TerminalNode *T_ID();
     antlr4::tree::TerminalNode *T_L_PAREN();
     antlr4::tree::TerminalNode *T_R_PAREN();
     BlockContext *block();
+    antlr4::tree::TerminalNode *T_INT();
+    antlr4::tree::TerminalNode *T_VOID();
+    FormalParamListContext *formalParamList();
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
@@ -522,6 +527,36 @@ public:
   };
 
   LValContext* lVal();
+
+  class  FormalParamListContext : public antlr4::ParserRuleContext {
+  public:
+    FormalParamListContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<FormalParamContext *> formalParam();
+    FormalParamContext* formalParam(size_t i);
+    std::vector<antlr4::tree::TerminalNode *> T_COMMA();
+    antlr4::tree::TerminalNode* T_COMMA(size_t i);
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  FormalParamListContext* formalParamList();
+
+  class  FormalParamContext : public antlr4::ParserRuleContext {
+  public:
+    FormalParamContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    BasicTypeContext *basicType();
+    antlr4::tree::TerminalNode *T_ID();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  FormalParamContext* formalParam();
 
 
   // By default the static state used to implement the parser is lazily initialized during the first
