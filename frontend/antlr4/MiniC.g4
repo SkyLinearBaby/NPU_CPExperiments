@@ -29,7 +29,7 @@ blockItem: statement | varDecl;
 varDecl: basicType varDef (T_COMMA varDef)* T_SEMICOLON;
 
 // 基本类型
-basicType: T_INT;
+basicType: T_INT | T_BOOL;
 
 // 变量定义
 varDef: T_ID (T_ASSIGN expr)?;
@@ -132,6 +132,7 @@ T_NOT: '!';
 T_RETURN: 'return';
 T_INT: 'int';
 T_VOID: 'void';
+T_BOOL: 'bool';
 T_IF: 'if';
 T_ELSE: 'else';
 T_WHILE: 'while';

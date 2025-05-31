@@ -643,11 +643,14 @@ std::any MiniCCSTVisitor::visitVarDef(MiniCParser::VarDefContext * ctx)
 
 std::any MiniCCSTVisitor::visitBasicType(MiniCParser::BasicTypeContext * ctx)
 {
-    // basicType: T_INT;
+    // basicType: T_INT | T_BOOL;
     type_attr attr{BasicType::TYPE_VOID, -1};
     if (ctx->T_INT()) {
         attr.type = BasicType::TYPE_INT;
         attr.lineno = (int64_t) ctx->T_INT()->getSymbol()->getLine();
+    } else if (ctx->T_BOOL()) {
+        attr.type = BasicType::TYPE_BOOL;
+        attr.lineno = (int64_t) ctx->T_BOOL()->getSymbol()->getLine();
     }
 
     return attr;
@@ -767,6 +770,8 @@ std::any MiniCCSTVisitor::visitFormalParam(MiniCParser::FormalParamContext * ctx
     // 设置形参的类型
     if (typeAttr.type == BasicType::TYPE_INT) {
         paramNode->type = IntegerType::getTypeInt();
+    } else if (typeAttr.type == BasicType::TYPE_BOOL) {
+        paramNode->type = IntegerType::getTypeBool();
     } else {
         paramNode->type = VoidType::getType();
     }
@@ -775,7 +780,9 @@ std::any MiniCCSTVisitor::visitFormalParam(MiniCParser::FormalParamContext * ctx
     auto * typeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
     typeNode->line_no = typeAttr.lineno;
     typeNode->type = paramNode->type; // 设置类型节点的类型
-    typeNode->name = (typeAttr.type == BasicType::TYPE_INT) ? "i32" : "void";
+    typeNode->name = (typeAttr.type == BasicType::TYPE_INT)    ? "i32"
+                     : (typeAttr.type == BasicType::TYPE_BOOL) ? "i1"
+                                                               : "void";
 
     // 创建变量名节点
     auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);

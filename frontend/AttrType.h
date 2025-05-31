@@ -24,8 +24,8 @@ enum class BasicType : std::int8_t {
     TYPE_NONE,  // 节点不存在类型
     TYPE_VOID,  // void型，仅用于函数返回值
     TYPE_INT,   // 整型
+    TYPE_BOOL,  // 布尔型
     TYPE_FLOAT, // Float类型
-    TYPE_BOOL,  // 布尔类型
     TYPE_MAX,   // 其它类型，未知类型
 };
 
@@ -60,11 +60,3 @@ typedef struct type_attr {
     BasicType type; // 类型
     int64_t lineno; // 行号
 } type_attr;
-
-///
-/// @brief 词法与语法通信的布尔字面量属性
-///
-typedef struct digit_bool_attr {
-    bool val;       // 布尔值
-    int64_t lineno; // 行号
-} digit_bool_attr;
