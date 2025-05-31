@@ -52,7 +52,7 @@ string getNodeName(ast_node * astnode)
             nodeName = "return";
             break;
         case ast_operator_type::AST_OP_FUNC_DEF:
-            nodeName = "func-def";
+            nodeName = "func-def: " + astnode->name;
             break;
         case ast_operator_type::AST_OP_COMPILE_UNIT:
             nodeName = "compile-unit";
@@ -79,7 +79,7 @@ string getNodeName(ast_node * astnode)
             nodeName = "=";
             break;
         case ast_operator_type::AST_OP_FUNC_CALL:
-            nodeName = "func-call";
+            nodeName = "func-call: " + astnode->name;
             break;
         case ast_operator_type::AST_OP_FUNC_REAL_PARAMS:
             nodeName = "real-params";
@@ -126,6 +126,9 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_IF:
             nodeName = "if";
             break;
+        case ast_operator_type::AST_OP_IF_ELSE:
+            nodeName = "if-else";
+            break;
         case ast_operator_type::AST_OP_WHILE:
             nodeName = "while";
             break;
@@ -134,6 +137,9 @@ string getNodeName(ast_node * astnode)
             break;
         case ast_operator_type::AST_OP_CONTINUE:
             nodeName = "continue";
+            break;
+        case ast_operator_type::AST_OP_FUNC_FORMAL_PARAM:
+            nodeName = "formal-param";
             break;
         default:
             nodeName = "unknown";

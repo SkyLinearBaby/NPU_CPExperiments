@@ -22,6 +22,7 @@
 #include "AttrType.h"
 #include "Value.h"
 #include "Type.h"
+#include "Types/IntegerType.h"
 
 #define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
 
@@ -92,10 +93,24 @@ std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext * ctx)
 
     // 创建函数定义节点
     auto * funcDefNode = create_contain_node(ast_operator_type::AST_OP_FUNC_DEF);
-    funcDefNode->name = funcName;
     funcDefNode->line_no = lineNo;
 
-    // 处理形参列表
+    // 1. 返回值类型节点
+    auto * retTypeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
+    retTypeNode->line_no = returnTypeAttr.lineno;
+    retTypeNode->type = (returnTypeAttr.type == BasicType::TYPE_INT) ? static_cast<Type *>(IntegerType::getTypeInt())
+                                                                     : static_cast<Type *>(VoidType::getType());
+    retTypeNode->name = (returnTypeAttr.type == BasicType::TYPE_INT) ? "i32" : "void";
+    funcDefNode->insert_son_node(retTypeNode);
+
+    // 2. 函数名节点
+    auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);
+    nameNode->line_no = lineNo;
+    nameNode->name = funcName;
+    funcDefNode->insert_son_node(nameNode);
+
+    // 3. 函数体节点（包含形参和block）
+    auto * funcBodyNode = create_contain_node(ast_operator_type::AST_OP_BLOCK);
     if (ctx->formalParamList()) {
         auto * formalParamsNode = create_contain_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS);
         for (auto * paramCtx: ctx->formalParamList()->formalParam()) {
@@ -104,14 +119,13 @@ std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext * ctx)
                 formalParamsNode->insert_son_node(paramNode);
             }
         }
-        funcDefNode->insert_son_node(formalParamsNode);
+        funcBodyNode->insert_son_node(formalParamsNode);
     }
-
-    // 处理函数体
     auto * bodyNode = std::any_cast<ast_node *>(visitBlock(ctx->block()));
     if (bodyNode) {
-        funcDefNode->insert_son_node(bodyNode);
+        funcBodyNode->insert_son_node(bodyNode);
     }
+    funcDefNode->insert_son_node(funcBodyNode);
 
     return funcDefNode;
 }
@@ -748,14 +762,29 @@ std::any MiniCCSTVisitor::visitFormalParam(MiniCParser::FormalParamContext * ctx
 
     // 创建形参节点
     auto * paramNode = create_contain_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
-    paramNode->name = paramName;
     paramNode->line_no = lineNo;
+
+    // 设置形参的类型
+    if (typeAttr.type == BasicType::TYPE_INT) {
+        paramNode->type = IntegerType::getTypeInt();
+    } else {
+        paramNode->type = VoidType::getType();
+    }
 
     // 创建类型节点
     auto * typeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
     typeNode->line_no = typeAttr.lineno;
+    typeNode->type = paramNode->type; // 设置类型节点的类型
+    typeNode->name = (typeAttr.type == BasicType::TYPE_INT) ? "i32" : "void";
 
+    // 创建变量名节点
+    auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);
+    nameNode->line_no = lineNo;
+    nameNode->name = paramName;
+
+    // 插入到形参节点
     paramNode->insert_son_node(typeNode);
+    paramNode->insert_son_node(nameNode);
 
     return paramNode;
 }
