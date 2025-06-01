@@ -17,7 +17,7 @@ int add(int a, int b) {
 }
 
 // int函数，三个参数
-int calculate(int a, int b, bool c) {
+int calculate(int a, int b, int  c) {
   int result;
   result = a + b;
   return result + c;

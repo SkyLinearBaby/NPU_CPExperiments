@@ -492,20 +492,22 @@ std::any MiniCCSTVisitor::visitUnaryExp(MiniCParser::UnaryExpContext * ctx)
     if (ctx->T_ID() && ctx->T_L_PAREN()) {
         // 函数调用
         auto * callNode = create_contain_node(ast_operator_type::AST_OP_FUNC_CALL);
-        callNode->name = ctx->T_ID()->getText();
-        callNode->line_no = (int64_t) ctx->T_ID()->getSymbol()->getLine();
+
+        // 创建函数名节点
+        auto * funcNameNode = ast_node::New(ctx->T_ID()->getText(), (int64_t) ctx->T_ID()->getSymbol()->getLine());
+        callNode->insert_son_node(funcNameNode);
 
         // 处理实参列表
+        auto * paramListNode = create_contain_node(ast_operator_type::AST_OP_FUNC_REAL_PARAMS);
         if (ctx->realParamList()) {
-            auto * paramListNode = create_contain_node(ast_operator_type::AST_OP_FUNC_REAL_PARAMS);
             for (auto * exprCtx: ctx->realParamList()->expr()) {
                 auto * paramNode = std::any_cast<ast_node *>(visitExpr(exprCtx));
                 if (paramNode) {
                     paramListNode->insert_son_node(paramNode);
                 }
             }
-            callNode->insert_son_node(paramListNode);
         }
+        callNode->insert_son_node(paramListNode);
 
         return callNode;
     }
