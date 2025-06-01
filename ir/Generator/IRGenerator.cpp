@@ -961,12 +961,9 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
         return false;
     }
 
-    minic_log(LOG_INFO, "查找变量：%s", node->name.c_str());
-
     // 首先在当前函数的作用域中查找变量
     for (auto * var: currentFunc->getVarValues()) {
         if (var->getName() == node->name) {
-            minic_log(LOG_INFO, "找到局部变量：%s", node->name.c_str());
             node->val = var;
             return true;
         }
@@ -975,7 +972,6 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
     // 如果在当前函数中没找到，则在全局作用域中查找
     Value * val = module->findVarValue(node->name);
     if (val) {
-        minic_log(LOG_INFO, "找到全局变量：%s", node->name.c_str());
         node->val = val;
         return true;
     }
@@ -1009,8 +1005,6 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
         return false;
     }
 
-    minic_log(LOG_INFO, "开始处理变量声明语句，子节点数量：%d", (int) node->sons.size());
-
     bool result = true;
     std::set<std::string> declaredVars; // 用于检查变量是否重复声明
 
@@ -1019,11 +1013,6 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
             minic_log(LOG_ERROR, "变量声明子节点无效");
             continue;
         }
-
-        minic_log(LOG_INFO,
-                  "处理变量声明子节点，节点类型：%d，子节点数量：%d",
-                  (int) child->node_type,
-                  (int) child->sons.size());
 
         // 变量声明节点应该包含类型和名称，可能还包含初始化表达式
         if (child->sons.size() < 2) {
@@ -1042,8 +1031,6 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
             minic_log(LOG_ERROR, "变量名为空");
             continue;
         }
-
-        minic_log(LOG_INFO, "处理变量声明：%s", nameNode->name.c_str());
 
         // 检查变量是否已经声明
         if (declaredVars.find(nameNode->name) != declaredVars.end()) {
@@ -1078,11 +1065,6 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
         return false;
     }
 
-    minic_log(LOG_INFO,
-              "开始处理变量声明，节点类型：%d，子节点数量：%d",
-              (int) node->node_type,
-              (int) node->sons.size());
-
     ast_node * typeNode = node->sons[0];
     ast_node * nameNode = node->sons[1];
 
@@ -1104,14 +1086,11 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
         return false;
     }
 
-    minic_log(LOG_INFO, "处理变量声明：类型=%s，名称=%s", typeNode->type->toString().c_str(), nameNode->name.c_str());
-
     // 获取当前函数
     Function * currentFunc = module->getCurrentFunction();
 
     // 如果是全局变量（currentFunc为nullptr）
     if (!currentFunc) {
-        minic_log(LOG_INFO, "创建全局变量：%s", nameNode->name.c_str());
         // 创建全局变量
         Value * var = module->newVarValue(typeNode->type, nameNode->name);
         if (!var) {
@@ -1122,7 +1101,6 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
         return true;
     }
 
-    minic_log(LOG_INFO, "创建局部变量：%s", nameNode->name.c_str());
     // 创建局部变量并添加到函数的作用域
     LocalVariable * var = currentFunc->newLocalVarValue(typeNode->type, nameNode->name);
     if (!var) {
@@ -1137,15 +1115,11 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
     if (node->sons.size() > 2) {
         ast_node * initNode = node->sons[2];
         if (initNode) {
-            minic_log(LOG_INFO, "处理变量(%s)的初始化表达式", nameNode->name.c_str());
-
             // 检查初始化节点
             if (!initNode) {
                 minic_log(LOG_ERROR, "变量(%s)初始化节点无效", nameNode->name.c_str());
                 return false;
             }
-
-            minic_log(LOG_INFO, "初始化节点类型：%d", (int) initNode->node_type);
 
             // 处理初始化表达式
             ast_node * initValue = ir_visit_ast_node(initNode);
@@ -1169,8 +1143,6 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
             // 将初始化指令添加到当前节点的指令列表中
             node->blockInsts.addInst(initValue->blockInsts);
             node->blockInsts.addInst(moveInst);
-
-            minic_log(LOG_INFO, "变量(%s)初始化完成", nameNode->name.c_str());
         }
     }
 
