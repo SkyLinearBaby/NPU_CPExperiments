@@ -32,7 +32,7 @@ define void @update_global_variables(i32%t0)
 	%l5 = 10
 	call void @putch(i32 %l5)
 .L12:
-	ret void
+	exit
 }
 define i32 @main()
 {
@@ -66,5 +66,5 @@ define i32 @main()
 	%l0 = 0
 	br label .L9
 .L9:
-	ret %l0
+	exit %l0
 }

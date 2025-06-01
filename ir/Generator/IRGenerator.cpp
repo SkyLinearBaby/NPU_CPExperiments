@@ -1097,6 +1097,13 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
             minic_log(LOG_ERROR, "创建全局变量(%s)失败", nameNode->name.c_str());
             return false;
         }
+        // 添加全局变量声明指令
+        if (auto globalVar = dynamic_cast<GlobalValue *>(var)) {
+            std::string declareStr = "declare " + typeNode->type->toString() + " " + globalVar->getDeclareIRName();
+            LabelInstruction * labelInst = new LabelInstruction(nullptr);
+            labelInst->setIRName(declareStr);
+            node->blockInsts.addInst(labelInst);
+        }
         node->val = var;
         return true;
     }

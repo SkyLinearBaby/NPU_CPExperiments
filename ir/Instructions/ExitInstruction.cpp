@@ -33,9 +33,9 @@ ExitInstruction::ExitInstruction(Function * _func, Value * _result)
 void ExitInstruction::toString(std::string & str)
 {
     if (getOperandsNum() == 0) {
-        str = "ret void";
+        str = "exit";
     } else {
         Value * src1 = getOperand(0);
-        str = "ret " + src1->getIRName();
+        str = "exit " + src1->getIRName();
     }
 }

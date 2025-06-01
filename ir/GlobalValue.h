@@ -134,6 +134,14 @@ public:
         this->alignment = _alignment;
     }
 
+    [[nodiscard]] std::string getDeclareIRName() const
+    {
+        if (isGlobalVarible()) {
+            return IRName + " = 0";
+        }
+        return IRName;
+    }
+
 protected:
     ///
     /// @brief The linkage of this global
