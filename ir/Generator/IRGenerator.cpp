@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <unordered_map>
 #include <vector>
+#include <set>
 
 #include "AST.h"
 #include "Common.h"
@@ -252,7 +253,9 @@ bool IRGenerator::ir_function_define(ast_node * node)
         minic_log(LOG_ERROR, "形参处理失败");
         return false;
     }
-    node->blockInsts.addInst(param_node->blockInsts);
+
+    // 将形参的指令添加到函数的IR代码中
+    irCode.addInst(param_node->blockInsts);
 
     // 新建一个Value，用于保存函数的返回值，如果没有返回值可不用申请
     LocalVariable * retValue = nullptr;
@@ -272,7 +275,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
                 minic_log(LOG_ERROR, "创建初始化指令失败");
                 return false;
             }
-            node->blockInsts.addInst(initInst);
+            irCode.addInst(initInst);
         }
     }
 
@@ -317,54 +320,81 @@ bool IRGenerator::ir_function_define(ast_node * node)
 /// @return 翻译是否成功，true：成功，false：失败
 bool IRGenerator::ir_function_formal_params(ast_node * node)
 {
+    if (!node) {
+        minic_log(LOG_ERROR, "函数形参节点无效");
+        return false;
+    }
+
+    // 获取当前正在处理的函数
     Function * currentFunc = module->getCurrentFunction();
     if (!currentFunc) {
         minic_log(LOG_ERROR, "当前函数未定义");
         return false;
     }
 
-    // 遍历所有形参
-    for (auto * paramNode: node->sons) {
-        if (!paramNode || paramNode->sons.size() < 2) {
-            minic_log(LOG_ERROR, "形参节点格式错误");
+    // 遍历形参列表
+    for (auto son: node->sons) {
+        if (!son) {
+            minic_log(LOG_ERROR, "形参节点无效");
             return false;
         }
 
-        // 获取形参类型和名称
-        ast_node * typeNode = paramNode->sons[0];
-        ast_node * nameNode = paramNode->sons[1];
-
-        if (!typeNode || !nameNode || !typeNode->type) {
-            minic_log(LOG_ERROR, "形参类型或名称节点无效");
+        // 形参节点包含两个子节点：
+        // 第一个节点：形参类型节点
+        // 第二个节点：形参名节点
+        if (son->sons.size() < 2) {
+            minic_log(LOG_ERROR, "形参节点格式错误：子节点数量(%d)小于2", (int) son->sons.size());
             return false;
         }
 
-        // 创建FormalParam对象并加入到函数的params中
-        FormalParam * formalParam = new FormalParam(typeNode->type, nameNode->name);
+        if (!son->sons[0]) {
+            minic_log(LOG_ERROR, "形参类型节点无效");
+            return false;
+        }
+
+        if (!son->sons[1]) {
+            minic_log(LOG_ERROR, "形参名节点无效");
+            return false;
+        }
+
+        if (son->sons[1]->name.empty()) {
+            minic_log(LOG_ERROR, "形参名为空");
+            return false;
+        }
+
+        // 获取形参类型
+        Type * type = son->sons[0]->type;
+        if (!type) {
+            minic_log(LOG_ERROR, "形参类型无效");
+            return false;
+        }
+
+        // 获取形参名
+        std::string paramName = son->sons[1]->name;
+
+        // 创建形参对象
+        FormalParam * formalParam = new FormalParam(type, paramName);
+        if (!formalParam) {
+            minic_log(LOG_ERROR, "创建形参对象失败");
+            return false;
+        }
+
+        // 将形参对象添加到函数的参数列表中
         currentFunc->getParams().push_back(formalParam);
 
-        // 创建形参临时变量，用于接收实参的值
-        LocalVariable * tempVar = currentFunc->newLocalVarValue(typeNode->type);
-        if (!tempVar) {
-            minic_log(LOG_ERROR, "创建形参临时变量失败");
-            return false;
-        }
-
         // 创建形参局部变量
-        LocalVariable * paramVar = currentFunc->newLocalVarValue(typeNode->type, nameNode->name);
+        LocalVariable * paramVar = currentFunc->newLocalVarValue(type, paramName);
         if (!paramVar) {
             minic_log(LOG_ERROR, "创建形参局部变量失败");
             return false;
         }
 
-        // 生成赋值指令，将临时变量的值赋给局部变量
-        MoveInstruction * moveInst = new MoveInstruction(currentFunc, paramVar, tempVar);
+        // 添加参数赋值指令
+        MoveInstruction * moveInst = new MoveInstruction(currentFunc, paramVar, formalParam);
         if (!moveInst) {
-            minic_log(LOG_ERROR, "创建移动指令失败");
+            minic_log(LOG_ERROR, "创建参数赋值指令失败");
             return false;
         }
-
-        // 将指令添加到形参节点的指令列表中
         node->blockInsts.addInst(moveInst);
     }
 
@@ -456,8 +486,26 @@ bool IRGenerator::ir_function_call(ast_node * node)
                 return false;
             }
 
-            realParams.push_back(temp->val);
+            // 创建临时变量来保存实参的值
+            LocalVariable * tempVar = currentFunc->newLocalVarValue(temp->val->getType());
+            if (!tempVar) {
+                minic_log(LOG_ERROR, "创建实参临时变量失败");
+                return false;
+            }
+
+            // 生成赋值指令，将实参的值赋给临时变量
+            MoveInstruction * moveInst = new MoveInstruction(currentFunc, tempVar, temp->val);
+            if (!moveInst) {
+                minic_log(LOG_ERROR, "创建移动指令失败");
+                return false;
+            }
+
+            // 将指令添加到当前节点的指令列表中
             node->blockInsts.addInst(temp->blockInsts);
+            node->blockInsts.addInst(moveInst);
+
+            // 将临时变量添加到实参列表中
+            realParams.push_back(tempVar);
         }
     }
 
@@ -953,14 +1001,33 @@ bool IRGenerator::ir_leaf_node_uint(ast_node * node)
 bool IRGenerator::ir_declare_statment(ast_node * node)
 {
     bool result = false;
+    std::set<std::string> declaredVars; // 用于检查变量是否重复声明
 
     for (auto & child: node->sons) {
+        if (!child || child->sons.size() < 2) {
+            continue;
+        }
+
+        // 获取变量名
+        ast_node * nameNode = child->sons[1];
+        if (!nameNode || nameNode->name.empty()) {
+            continue;
+        }
+
+        // 检查变量是否已经声明
+        if (declaredVars.find(nameNode->name) != declaredVars.end()) {
+            minic_log(LOG_ERROR, "变量(%s)重复声明", nameNode->name.c_str());
+            return false;
+        }
 
         // 遍历每个变量声明
         result = ir_variable_declare(child);
         if (!result) {
             break;
         }
+
+        // 记录已声明的变量
+        declaredVars.insert(nameNode->name);
     }
 
     return result;
@@ -989,11 +1056,19 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
         return false;
     }
 
-    // 创建变量并添加到当前函数的作用域
+    // 获取当前函数
     Function * currentFunc = module->getCurrentFunction();
+
+    // 如果是全局变量（currentFunc为nullptr）
     if (!currentFunc) {
-        minic_log(LOG_ERROR, "当前函数未定义");
-        return false;
+        // 创建全局变量
+        Value * var = module->newVarValue(typeNode->type, nameNode->name);
+        if (!var) {
+            minic_log(LOG_ERROR, "创建全局变量(%s)失败", nameNode->name.c_str());
+            return false;
+        }
+        node->val = var;
+        return true;
     }
 
     // 创建局部变量并添加到函数的作用域
@@ -1002,9 +1077,6 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
         minic_log(LOG_ERROR, "创建变量(%s)失败", nameNode->name.c_str());
         return false;
     }
-
-    // 将变量添加到当前函数的作用域
-    currentFunc->getVarValues().push_back(var);
 
     // 设置节点的值为新创建的变量
     node->val = var;

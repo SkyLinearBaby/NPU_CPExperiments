@@ -239,13 +239,16 @@ void Function::setExistFuncCall(bool exist)
 /// @param scope_level 局部变量的作用域层级
 LocalVariable * Function::newLocalVarValue(Type * type, std::string name, int32_t scope_level)
 {
-    // 创建变量并加入符号表
-    LocalVariable * varValue = new LocalVariable(type, name, scope_level);
+    // 创建局部变量
+    LocalVariable * var = new LocalVariable(type, name, scope_level);
+    if (!var) {
+        return nullptr;
+    }
 
-    // varsVector表中可能存在变量重名的信息
-    varsVector.push_back(varValue);
+    // 添加到函数的局部变量列表中
+    varsVector.push_back(var);
 
-    return varValue;
+    return var;
 }
 
 /// @brief 新建一个内存型的Value，并加入到符号表，用于后续释放空间
