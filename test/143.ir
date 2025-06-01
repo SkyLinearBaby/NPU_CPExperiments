@@ -1,0 +1,70 @@
+declare i32 @global_counter
+declare i32 @global_sum
+define void @update_global_variables(i32%t0)
+{
+	declare i32 %l1 ; 1:value
+	declare i32 %l2
+	declare i32 %l3
+	declare i32 %l4
+	declare i32 %l5
+	declare i32 %t6
+	declare i32 %t7
+	declare i1 %t8
+	entry
+	%l1 = %t0
+	%t6 = add @global_counter,1
+	@global_counter = %t6
+	%t7 = add @global_sum,%l1
+	@global_sum = %t7
+	%t8 = icmp gt @global_sum,100
+	bc %t8, label .L9, label .L10
+.L9:
+	@global_sum = 0
+	br label .L11
+.L10:
+.L11:
+	%l2 = @global_counter
+	call void @putint(i32 %l2)
+	%l3 = 32
+	call void @putch(i32 %l3)
+	%l4 = @global_sum
+	call void @putint(i32 %l4)
+	%l5 = 10
+	call void @putch(i32 %l5)
+.L12:
+	ret void
+}
+define i32 @main()
+{
+	declare i32 %l0
+	declare i32 %l1
+	declare i32 %l2
+	declare i32 %l3
+	declare i32 %l4
+	declare i32 %l5
+	declare i32 %l6
+	declare i32 %l7
+	declare i32 %l8
+	entry
+	%l0 = 0
+	%l1 = 30
+	call void @update_global_variables(i32 %l1)
+	%l2 = 50
+	call void @update_global_variables(i32 %l2)
+	%l3 = 40
+	call void @update_global_variables(i32 %l3)
+	%l4 = 20
+	call void @update_global_variables(i32 %l4)
+	%l5 = 10
+	call void @update_global_variables(i32 %l5)
+	%l6 = @global_counter
+	call void @putint(i32 %l6)
+	%l7 = 32
+	call void @putch(i32 %l7)
+	%l8 = @global_sum
+	call void @putint(i32 %l8)
+	%l0 = 0
+	br label .L9
+.L9:
+	ret %l0
+}

@@ -5,7 +5,7 @@ define i32 @f()
 	%l0 = 10
 	br label .L1
 .L1:
-	exit %l0
+	ret %l0
 }
 define i32 @main()
 {
@@ -17,5 +17,5 @@ define i32 @main()
 	%l0 = %l1
 	br label .L2
 .L2:
-	exit %l0
+	ret %l0
 }
