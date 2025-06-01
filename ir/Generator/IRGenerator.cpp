@@ -1025,6 +1025,7 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
                   (int) child->node_type,
                   (int) child->sons.size());
 
+        // 变量声明节点应该包含类型和名称，可能还包含初始化表达式
         if (child->sons.size() < 2) {
             minic_log(LOG_ERROR, "变量声明节点格式错误：子节点数量(%d)小于2", (int) child->sons.size());
             continue;
@@ -1032,8 +1033,13 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
 
         // 获取变量名
         ast_node * nameNode = child->sons[1];
-        if (!nameNode || nameNode->name.empty()) {
-            minic_log(LOG_ERROR, "变量名无效");
+        if (!nameNode) {
+            minic_log(LOG_ERROR, "变量名节点无效");
+            continue;
+        }
+
+        if (nameNode->name.empty()) {
+            minic_log(LOG_ERROR, "变量名为空");
             continue;
         }
 
@@ -1080,13 +1086,21 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
     ast_node * typeNode = node->sons[0];
     ast_node * nameNode = node->sons[1];
 
-    if (!typeNode || !nameNode || !typeNode->type) {
+    if (!typeNode || !nameNode) {
         minic_log(LOG_ERROR, "变量声明类型或名称节点无效");
         return false;
     }
 
+    if (!typeNode->type) {
+        minic_log(LOG_ERROR, "变量声明类型无效");
+        return false;
+    }
+
     if (nameNode->name.empty()) {
-        minic_log(LOG_ERROR, "变量名无效");
+        minic_log(LOG_ERROR,
+                  "变量名无效: 节点类型=%d, 子节点数量=%d",
+                  (int) nameNode->node_type,
+                  (int) nameNode->sons.size());
         return false;
     }
 
@@ -1119,26 +1133,45 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
     // 设置节点的值为新创建的变量
     node->val = var;
 
-    // 如果是变量声明语句，需要添加初始化指令
-    if (node->sons.size() > 2 && node->sons[2]) {
-        minic_log(LOG_INFO, "处理变量(%s)的初始化表达式", nameNode->name.c_str());
+    // 检查是否有初始化表达式
+    if (node->sons.size() > 2) {
         ast_node * initNode = node->sons[2];
-        ast_node * initValue = ir_visit_ast_node(initNode);
-        if (!initValue) {
-            minic_log(LOG_ERROR, "变量(%s)初始化表达式处理失败", nameNode->name.c_str());
-            return false;
-        }
+        if (initNode) {
+            minic_log(LOG_INFO, "处理变量(%s)的初始化表达式", nameNode->name.c_str());
 
-        // 添加初始化指令
-        MoveInstruction * moveInst = new MoveInstruction(currentFunc, var, initValue->val);
-        if (!moveInst) {
-            minic_log(LOG_ERROR, "创建变量(%s)初始化指令失败", nameNode->name.c_str());
-            return false;
-        }
+            // 检查初始化节点
+            if (!initNode) {
+                minic_log(LOG_ERROR, "变量(%s)初始化节点无效", nameNode->name.c_str());
+                return false;
+            }
 
-        // 将初始化指令添加到当前节点的指令列表中
-        node->blockInsts.addInst(initValue->blockInsts);
-        node->blockInsts.addInst(moveInst);
+            minic_log(LOG_INFO, "初始化节点类型：%d", (int) initNode->node_type);
+
+            // 处理初始化表达式
+            ast_node * initValue = ir_visit_ast_node(initNode);
+            if (!initValue) {
+                minic_log(LOG_ERROR, "变量(%s)初始化表达式处理失败", nameNode->name.c_str());
+                return false;
+            }
+
+            if (!initValue->val) {
+                minic_log(LOG_ERROR, "变量(%s)初始化值无效", nameNode->name.c_str());
+                return false;
+            }
+
+            // 添加初始化指令
+            MoveInstruction * moveInst = new MoveInstruction(currentFunc, var, initValue->val);
+            if (!moveInst) {
+                minic_log(LOG_ERROR, "创建变量(%s)初始化指令失败", nameNode->name.c_str());
+                return false;
+            }
+
+            // 将初始化指令添加到当前节点的指令列表中
+            node->blockInsts.addInst(initValue->blockInsts);
+            node->blockInsts.addInst(moveInst);
+
+            minic_log(LOG_INFO, "变量(%s)初始化完成", nameNode->name.c_str());
+        }
     }
 
     return true;

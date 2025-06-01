@@ -610,10 +610,15 @@ std::any MiniCCSTVisitor::visitVarDecl(MiniCParser::VarDeclContext * ctx)
         ast_node * decl_node;
         if (var_def_node->node_type == ast_operator_type::AST_OP_VAR_INIT) {
             // 如果是带初始化的变量定义，需要将类型节点作为第一个子节点
-            decl_node = ast_node::New(ast_operator_type::AST_OP_VAR_DECL, type_node, var_def_node, nullptr);
+            decl_node = create_contain_node(ast_operator_type::AST_OP_VAR_DECL);
+            decl_node->insert_son_node(type_node);
+            decl_node->insert_son_node(var_def_node->sons[0]); // 变量名节点
+            decl_node->insert_son_node(var_def_node->sons[1]); // 初始化表达式节点
         } else {
             // 如果是普通变量定义，直接创建变量声明节点
-            decl_node = ast_node::New(ast_operator_type::AST_OP_VAR_DECL, type_node, var_def_node, nullptr);
+            decl_node = create_contain_node(ast_operator_type::AST_OP_VAR_DECL);
+            decl_node->insert_son_node(type_node);
+            decl_node->insert_son_node(var_def_node);
         }
 
         // 插入到变量声明语句
@@ -628,8 +633,6 @@ std::any MiniCCSTVisitor::visitVarDef(MiniCParser::VarDefContext * ctx)
     // varDef: T_ID (T_ASSIGN expr)?;
 
     auto varId = ctx->T_ID()->getText();
-
-    // 获取行号
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
 
     // 创建变量ID节点

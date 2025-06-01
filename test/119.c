@@ -3,8 +3,7 @@ int f() {
 }
 
 int main() {
-    int f ;
-    f= 20;
+    int f = 20;
   return f;
 }
 //20
