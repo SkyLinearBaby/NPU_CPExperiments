@@ -1,8 +1,8 @@
-define i32 @defn()
+define i32 @f()
 {
 	declare i32 %l0
 	entry
-	%l0 = 4
+	%l0 = 10
 	br label .L1
 .L1:
 	exit %l0
@@ -10,14 +10,12 @@ define i32 @defn()
 define i32 @main()
 {
 	declare i32 %l0
-	declare i32 %l1 ; 1:a
-	declare i32 %t2
+	declare i32 %l1 ; 1:f
 	entry
 	%l0 = 0
-	%t2 = call i32 @defn()
-	%l1 = %t2
+	%l1 = 20
 	%l0 = %l1
-	br label .L3
-.L3:
+	br label .L2
+.L2:
 	exit %l0
 }
