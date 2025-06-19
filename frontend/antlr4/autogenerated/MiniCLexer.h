@@ -17,7 +17,7 @@ public:
     T_MOD = 12, T_LT = 13, T_GT = 14, T_LE = 15, T_GE = 16, T_EQ = 17, T_NEQ = 18, 
     T_AND = 19, T_OR = 20, T_NOT = 21, T_RETURN = 22, T_INT = 23, T_VOID = 24, 
     T_BOOL = 25, T_IF = 26, T_ELSE = 27, T_WHILE = 28, T_BREAK = 29, T_CONTINUE = 30, 
-    T_ID = 31, T_DIGIT = 32, WS = 33, LINE_COMMENT = 34
+    T_ID = 31, T_DIGIT = 32, WS = 33, LINE_COMMENT = 34, BLOCK_COMMENT = 35
   };
 
   explicit MiniCLexer(antlr4::CharStream *input);

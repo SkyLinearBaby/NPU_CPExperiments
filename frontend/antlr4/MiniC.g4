@@ -150,3 +150,4 @@ T_DIGIT:
 WS: [ \r\n\t]+ -> skip;
 /*忽略注释 */
 LINE_COMMENT: '//' ~[\r\n]* -> skip;
+BLOCK_COMMENT: '/*' .*? '*/' -> skip;
