@@ -86,6 +86,18 @@ enum class ast_operator_type : int {
     /// @brief 变量声明
     AST_OP_VAR_DECL,
 
+    /// @brief 数组声明
+    AST_OP_ARRAY_DECL,
+
+    /// @brief 数组维度
+    AST_OP_ARRAY_DIMS,
+
+    /// @brief 数组初始化
+    AST_OP_ARRAY_INIT,
+
+    /// @brief 数组访问
+    AST_OP_ARRAY_ACCESS,
+
     /// @brief 二元运算符+
     AST_OP_ADD,
 
