@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 #include <set>
-
+#include "MemAccessInstruction.h"
 #include "AST.h"
 #include "Common.h"
 #include "Function.h"
@@ -33,6 +33,9 @@
 #include "BinaryInstruction.h"
 #include "MoveInstruction.h"
 #include "GotoInstruction.h"
+#include "Types/ArrayType.h"
+#include "Types/PointerType.h"
+#include "Instruction.h"
 
 /// @brief 构造函数
 /// @param _root AST的根
@@ -90,6 +93,10 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     ast2ir_handlers[ast_operator_type::AST_OP_WHILE] = &IRGenerator::ir_while;
     ast2ir_handlers[ast_operator_type::AST_OP_BREAK] = &IRGenerator::ir_break;
     ast2ir_handlers[ast_operator_type::AST_OP_CONTINUE] = &IRGenerator::ir_continue;
+    /* 数组 */
+    ast2ir_handlers[ast_operator_type::AST_OP_ARRAY_DECL] = &IRGenerator::ir_arraytype;
+    ast2ir_handlers[ast_operator_type::AST_OP_ARRAY_ACCESS] = &IRGenerator::ir_arrayaccess;
+    ast2ir_handlers[ast_operator_type::AST_OP_ARRAY_DIMS] = &IRGenerator::ir_arraydimen;
 }
 
 /// @brief 遍历抽象语法树产生线性IR，保存到IRCode中
@@ -1823,6 +1830,301 @@ bool IRGenerator::ir_logical_not(ast_node * node)
 
     // 统一出口
     node->blockInsts.addInst(exit_label);
+
+    return true;
+}
+
+/// @brief 数组类型节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_arraytype(ast_node * node)
+{
+    // 安全检查
+    if (!node) {
+        minic_log(LOG_ERROR, "数组类型节点为空");
+        return false;
+    }
+
+    minic_log(LOG_DEBUG, "处理数组类型节点，节点类型ID: %d", static_cast<int>(node->node_type));
+
+    // 数组类型节点应该有至少两个子节点：变量名和维度
+    if (node->sons.size() < 2) {
+        minic_log(LOG_ERROR, "数组类型节点结构错误，子节点数量: %zu", node->sons.size());
+        return false;
+    }
+
+    // 获取变量名节点
+    ast_node * name_node = node->sons[0];
+    if (!name_node) {
+        minic_log(LOG_ERROR, "数组变量名节点为空");
+        return false;
+    }
+
+    minic_log(LOG_DEBUG,
+              "数组变量名节点类型ID: %d, 节点名称: '%s'",
+              static_cast<int>(name_node->node_type),
+              name_node->name.empty() ? "<空>" : name_node->name.c_str());
+
+    // 保存变量名以备后用
+    std::string arrayName;
+    // 检查节点类型是否为变量ID叶子节点
+    if (name_node->node_type == ast_operator_type::AST_OP_LEAF_VAR_ID) {
+        // 对于变量ID叶子节点，name字段就是变量名
+        arrayName = name_node->name;
+        minic_log(LOG_DEBUG, "从AST_OP_LEAF_VAR_ID节点获取变量名: '%s'", arrayName.c_str());
+    } else {
+        // 尝试直接获取name字段
+        arrayName = name_node->name;
+        minic_log(LOG_DEBUG, "从节点name字段获取变量名: '%s'", arrayName.c_str());
+
+        // 如果name字段为空但节点有值，尝试其他方式获取
+        if (arrayName.empty()) {
+            // 尝试手动查看节点的其他属性
+            minic_log(LOG_DEBUG,
+                      "尝试其他方式获取变量名: integer_val=%u, line_no=%ld",
+                      name_node->integer_val,
+                      name_node->line_no);
+        }
+    }
+
+    if (arrayName.empty()) {
+        minic_log(LOG_ERROR, "数组变量名为空");
+        return false;
+    }
+
+    // 保存变量名到节点自身
+    node->name = arrayName;
+    minic_log(LOG_DEBUG, "已将变量名'%s'保存到数组类型节点", arrayName.c_str());
+
+    // 获取维度节点
+    ast_node * dimen_node = node->sons[1];
+    if (!dimen_node) {
+        minic_log(LOG_ERROR, "数组维度节点为空");
+        return false;
+    }
+
+    minic_log(LOG_DEBUG, "数组维度节点类型ID: %d", static_cast<int>(dimen_node->node_type));
+
+    // 处理维度
+    ast_node * processed_dimen = ir_visit_ast_node(dimen_node);
+    if (!processed_dimen) {
+        minic_log(LOG_ERROR, "处理数组维度失败");
+        return false;
+    }
+
+    // 从当前作用域或变量声明获取基本类型
+    Type * base_type = IntegerType::getTypeInt(); // 默认为整型
+
+    // 存储所有维度的大小，用于调试和类型创建
+    std::vector<uint32_t> dimensions;
+
+    // 从维度节点获取每个维度的大小
+    minic_log(LOG_DEBUG, "处理数组维度，维度数量: %zu", processed_dimen->sons.size());
+    for (size_t i = 0; i < processed_dimen->sons.size(); i++) {
+        ast_node * dim_size_node = processed_dimen->sons[i];
+        if (!dim_size_node) {
+            minic_log(LOG_ERROR, "第%zu维度节点为空", i + 1);
+            return false;
+        }
+
+        if (!dim_size_node->val) {
+            dim_size_node = ir_visit_ast_node(dim_size_node);
+            if (!dim_size_node || !dim_size_node->val) {
+                minic_log(LOG_ERROR, "处理第%zu维度大小失败", i + 1);
+                return false;
+            }
+        }
+
+        // 获取维度大小
+        ConstInt * const_size = dynamic_cast<ConstInt *>(dim_size_node->val);
+        if (!const_size) {
+            minic_log(LOG_ERROR, "第%zu维度不是常量整数", i + 1);
+            return false;
+        }
+
+        uint32_t size = const_size->getVal();
+        dimensions.push_back(size);
+        minic_log(LOG_DEBUG, "处理数组维度[%zu]: %d", i, size);
+    }
+
+    // 从内向外构建多维数组类型（从最里层开始）
+    // 例如: int[10][20][30] 应该先构建 int[30]，然后是 int[30][20]，最后是 int[30][20][10]
+    Type * array_type = base_type;
+    for (int i = dimensions.size() - 1; i >= 0; i--) {
+        const ArrayType * arr_type = ArrayType::get(array_type, dimensions[i]);
+        if (!arr_type) {
+            minic_log(LOG_ERROR, "创建数组类型失败，维度[%d]=%d", i, dimensions[i]);
+            return false;
+        }
+
+        // 在需要非const指针时，使用 const_cast
+        array_type = const_cast<ArrayType *>(arr_type);
+        minic_log(LOG_DEBUG,
+                  "创建数组类型，维度[%d]=%d, 类型字符串: %s",
+                  i,
+                  dimensions[i],
+                  array_type->toString().c_str());
+    }
+
+    // 设置节点的类型
+    node->type = array_type;
+
+    minic_log(LOG_DEBUG,
+              "完成数组类型处理，类型ID: %d, 类型字符串: %s",
+              static_cast<int>(array_type->getTypeID()),
+              array_type->toString().c_str());
+
+    return true;
+}
+
+/// @brief 数组维度节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_arraydimen(ast_node * node)
+{
+    // 安全检查
+    if (!node) {
+        minic_log(LOG_ERROR, "数组维度节点为空");
+        return false;
+    }
+
+    // 数组维度应该是一个表达式，通常是常量整数
+    if (node->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+        // 如果是常量整数节点，直接创建常量值
+        node->val = module->newConstInt((int32_t) node->integer_val);
+        return true;
+    }
+
+    // 如果有子节点，处理子表达式
+    if (!node->sons.empty()) {
+        ast_node * expr = ir_visit_ast_node(node->sons[0]);
+        if (!expr || !expr->val) {
+            minic_log(LOG_ERROR, "处理数组维度表达式失败");
+            return false;
+        }
+
+        node->val = expr->val;
+        node->blockInsts.addInst(expr->blockInsts);
+    } else {
+        minic_log(LOG_ERROR, "无法确定数组维度");
+        return false;
+    }
+
+    return true;
+}
+
+/// @brief 数组下标访问节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_arrayaccess(ast_node * node)
+{
+    // 安全检查
+    if (!node || node->sons.size() < 2) {
+        minic_log(LOG_ERROR, "数组下标访问节点结构错误");
+        return false;
+    }
+
+    Function * currentFunc = module->getCurrentFunction();
+    if (!currentFunc) {
+        minic_log(LOG_ERROR, "数组访问处理时当前函数为空");
+        return false;
+    }
+
+    // 处理数组变量
+    ast_node * array_node = ir_visit_ast_node(node->sons[0]);
+    if (!array_node || !array_node->val) {
+        minic_log(LOG_ERROR, "处理数组变量失败");
+        return false;
+    }
+
+    // 处理索引表达式
+    ast_node * index_node = ir_visit_ast_node(node->sons[1]);
+    if (!index_node || !index_node->val) {
+        minic_log(LOG_ERROR, "处理数组索引失败");
+        return false;
+    }
+
+    // 获取数组基址和类型
+    Value * array_base = array_node->val;
+    Type * array_type = array_base->getType();
+
+    if (!array_type) {
+        minic_log(LOG_ERROR, "数组类型为空");
+        return false;
+    }
+
+    minic_log(LOG_DEBUG, "数组访问: 类型ID=%d", static_cast<int>(array_type->getTypeID()));
+
+    // 确定元素类型和大小
+    Type * element_type = nullptr;
+    int32_t elem_size = 4; // 默认4字节
+
+    if (array_type->isArrayType()) {
+        const ArrayType * arrayType = static_cast<const ArrayType *>(array_type);
+        element_type = arrayType->getElementType();
+        elem_size = element_type->getSize();
+    } else if (array_type->isPointerType()) {
+        // 处理指针类型
+        const PointerType * ptrType = static_cast<const PointerType *>(array_type);
+        element_type = const_cast<Type *>(ptrType->getPointeeType());
+        elem_size = element_type->getSize();
+    } else {
+        minic_log(LOG_ERROR, "变量不是数组或指针类型");
+        return false;
+    }
+
+    // 步骤1: 计算偏移量 (index * 元素大小)
+    BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
+                                                        IRInstOperator::IRINST_OP_MUL_I,
+                                                        index_node->val,
+                                                        module->newConstInt(elem_size),
+                                                        IntegerType::getTypeInt());
+
+    // 步骤2: 计算元素地址 (base + offset)
+    // 创建指针类型，指向元素类型
+    const PointerType * ptr_type = PointerType::get(element_type);
+    Type * address_type = const_cast<PointerType *>(ptr_type);
+
+    BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                        IRInstOperator::IRINST_OP_ADD_I,
+                                                        array_base,
+                                                        mulInst,
+                                                        address_type // 使用指针类型而不是元素类型
+    );
+
+    // 步骤3: 根据上下文决定是返回地址还是加载值
+    LoadInstruction * loadInst = nullptr;
+
+    // 只有在数组访问作为右值时才创建加载指令
+    // 判断该节点是否是赋值语句的左侧
+    bool isLeftValueOfAssign = false;
+    if (node->parent && node->parent->node_type == ast_operator_type::AST_OP_ASSIGN) {
+        // 检查是否是左值
+        if (!node->parent->sons.empty() && node->parent->sons[0] == node) {
+            isLeftValueOfAssign = true;
+        }
+    }
+
+    if (!isLeftValueOfAssign) {
+        // 作为右值使用，需要加载元素值
+        loadInst = new LoadInstruction(currentFunc, addInst, element_type);
+    }
+
+    // 收集指令
+    node->blockInsts.addInst(array_node->blockInsts);
+    node->blockInsts.addInst(index_node->blockInsts);
+    node->blockInsts.addInst(mulInst);
+    node->blockInsts.addInst(addInst);
+
+    if (loadInst) {
+        node->blockInsts.addInst(loadInst);
+        node->val = loadInst; // 访问结果是加载的值
+    } else {
+        node->val = addInst; // 访问结果是地址
+    }
+
+    // 保存元素类型
+    node->type = element_type;
 
     return true;
 }

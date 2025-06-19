@@ -170,8 +170,14 @@ set(IR_SRCS
 	ir/Instructions/GotoInstruction.h
 	ir/Instructions/LabelInstruction.cpp
 	ir/Instructions/LabelInstruction.h
+	ir/Instructions/MemAccessInstruction.h
+
 	ir/Instructions/MoveInstruction.cpp
 	ir/Instructions/MoveInstruction.h
+	ir/Types/ArrayType.cpp
+	ir/Types/ArrayType.h
+	ir/Types/PointerType.h
+
 	ir/Types/VoidType.h
 	ir/Types/VoidType.cpp
 	ir/Types/LabelType.h
