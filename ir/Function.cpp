@@ -16,6 +16,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <iostream>
 
 #include "IRConstant.h"
 #include "Function.h"
@@ -92,7 +93,37 @@ void Function::toString(std::string & str)
             str += ", ";
         }
 
-        std::string param_str = param->getType()->toString() + param->getIRName();
+        std::string type_str;
+        std::string name_str = param->getIRName();
+        if (param->getType()->isArrayType()) {
+            // 只输出最内层类型
+            const ArrayType * arrType = static_cast<const ArrayType *>(param->getType());
+            const Type * baseType = arrType->getBaseElementType();
+            while (baseType && baseType->isArrayType()) {
+                baseType = static_cast<const ArrayType *>(baseType)->getBaseElementType();
+            }
+            type_str = baseType ? baseType->toString() : "void";
+            // 不拼接任何维度
+        } else {
+            type_str = param->getType()->toString();
+        }
+        std::string param_str = type_str + " " + name_str;
+
+        // 调试输出参数类型和维度
+        std::cout << "[DEBUG] param IRName: " << param->getIRName() << ", type: " << param->getType()->toString()
+                  << ", isArrayType: " << param->getType()->isArrayType() << std::endl;
+        if (param->getType()->isArrayType()) {
+            const ArrayType * arrType = static_cast<const ArrayType *>(param->getType());
+            std::vector<uint32_t> dims = arrType->getDimensions();
+            std::cout << "[DEBUG] dims: ";
+            for (uint32_t dim: dims) {
+                std::cout << dim << " ";
+            }
+            std::cout << std::endl;
+            for (uint32_t dim: dims) {
+                param_str += "[" + std::to_string(dim) + "]";
+            }
+        }
 
         str += param_str;
     }

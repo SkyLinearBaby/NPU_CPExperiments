@@ -23,6 +23,7 @@
 #include "Value.h"
 #include "Type.h"
 #include "Types/IntegerType.h"
+#include "Types/ArrayType.h"
 
 #define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
 
@@ -786,67 +787,83 @@ std::any MiniCCSTVisitor::visitFormalParam(MiniCParser::FormalParamContext * ctx
     std::string paramName = ctx->T_ID()->getText();
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
 
-    // 创建形参节点
+    // 创建形参节点（统一结构）
     auto * paramNode = create_contain_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
     paramNode->line_no = lineNo;
 
-    // 设置形参的类型
-    if (typeAttr.type == BasicType::TYPE_INT) {
-        paramNode->type = IntegerType::getTypeInt();
-    } else if (typeAttr.type == BasicType::TYPE_BOOL) {
-        paramNode->type = IntegerType::getTypeBool();
-    } else {
-        paramNode->type = VoidType::getType();
-    }
-
-    // 创建类型节点
-    auto * typeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
-    typeNode->line_no = typeAttr.lineno;
-    typeNode->type = paramNode->type; // 设置类型节点的类型
-    typeNode->name = (typeAttr.type == BasicType::TYPE_INT)    ? "i32"
-                     : (typeAttr.type == BasicType::TYPE_BOOL) ? "i1"
-                                                               : "void";
-
-    // 创建变量名节点
-    auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);
-    nameNode->line_no = lineNo;
-    nameNode->name = paramName;
-
-    // 判断是否为数组形参
     if (ctx->arrayDims()) {
-        // 处理数组维度
-        auto * dimsNode = std::any_cast<ast_node *>(visitArrayDims(ctx->arrayDims()));
-        // 对所有没有expr的维度都补0
-        int totalDims = ctx->arrayDims()->T_L_BRACKET().size();
-        int exprCount = ctx->arrayDims()->expr().size();
-        // 统计每个维度是否有expr，若没有则补0
-        std::vector<ast_node *> newDims;
-        int exprIdx = 0;
-        for (int i = 0; i < totalDims; ++i) {
-            // 判断原始dimsNode->sons是否有对应expr
-            if (exprIdx < exprCount && dimsNode->sons.size() > exprIdx && dimsNode->sons[exprIdx] != nullptr) {
-                newDims.push_back(dimsNode->sons[exprIdx]);
-                ++exprIdx;
+        // 创建类型节点
+        auto * typeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
+        typeNode->line_no = typeAttr.lineno;
+        if (typeAttr.type == BasicType::TYPE_INT) {
+            typeNode->type = IntegerType::getTypeInt();
+            typeNode->name = "i32";
+        } else if (typeAttr.type == BasicType::TYPE_BOOL) {
+            typeNode->type = IntegerType::getTypeBool();
+            typeNode->name = "i1";
+        } else {
+            typeNode->type = VoidType::getType();
+            typeNode->name = "void";
+        }
+
+        // 构建 array-decl 节点
+        auto * arrayDeclNode = create_contain_node(ast_operator_type::AST_OP_ARRAY_DECL);
+        arrayDeclNode->insert_son_node(typeNode); // 先插入类型节点
+
+        // 变量名节点
+        auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);
+        nameNode->line_no = lineNo;
+        nameNode->name = paramName;
+        arrayDeclNode->insert_son_node(nameNode);
+
+        // 维度节点
+        auto * dimNode = std::any_cast<ast_node *>(visitArrayDims(ctx->arrayDims()));
+        arrayDeclNode->insert_son_node(dimNode);
+
+        std::vector<uint32_t> dims;
+        for (auto * dim: dimNode->sons) {
+            if (dim && dim->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+                dims.push_back(dim->integer_val);
             } else {
-                // 没有expr，补0
-                auto * zeroDim = ast_node::New(digit_int_attr{0, lineNo});
-                newDims.push_back(zeroDim);
+                dims.push_back(0); // 容错处理
             }
         }
-        dimsNode->sons = newDims;
-        // 构建数组声明节点，名字、维度、类型为子节点（与变量声明一致：名字、维度、类型）
-        auto * arrayParamNode = create_contain_node(ast_operator_type::AST_OP_ARRAY_DECL);
-        arrayParamNode->insert_son_node(nameNode);
-        arrayParamNode->insert_son_node(dimsNode);
-        arrayParamNode->insert_son_node(typeNode);
-        // 直接返回数组声明节点（与变量声明一致）
-        return arrayParamNode;
+        Type * arrayType = IntegerType::getTypeInt();
+        if (dims.size() == 1 && dims[0] == 0) {
+            // 一维且为0，只加一层
+            arrayType = (Type *) ArrayType::get(arrayType, 0);
+        } else {
+            for (int i = dims.size() - 1; i >= 0; --i) {
+                arrayType = (Type *) ArrayType::get(arrayType, dims[i]);
+            }
+        }
+        arrayDeclNode->type = arrayType;
+
+        // formal-param只插入array-decl
+        paramNode->insert_son_node(arrayDeclNode);
     } else {
-        // 普通变量，类型和名字为子节点
+        // 普通变量
+        // 创建类型节点
+        auto * typeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
+        typeNode->line_no = typeAttr.lineno;
+        if (typeAttr.type == BasicType::TYPE_INT) {
+            typeNode->type = IntegerType::getTypeInt();
+            typeNode->name = "i32";
+        } else if (typeAttr.type == BasicType::TYPE_BOOL) {
+            typeNode->type = IntegerType::getTypeBool();
+            typeNode->name = "i1";
+        } else {
+            typeNode->type = VoidType::getType();
+            typeNode->name = "void";
+        }
+        // 创建变量名节点
+        auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);
+        nameNode->line_no = lineNo;
+        nameNode->name = paramName;
         paramNode->insert_son_node(typeNode);
         paramNode->insert_son_node(nameNode);
-        return paramNode;
     }
+    return paramNode;
 }
 
 // 数组维度
@@ -864,8 +881,10 @@ std::any MiniCCSTVisitor::visitArrayDims(MiniCParser::ArrayDimsContext * ctx)
             auto * dim_expr = std::any_cast<ast_node *>(visitExpr(exprs[expr_idx++]));
             dims_node->insert_son_node(dim_expr);
         } else {
-            // 空维度
-            dims_node->insert_son_node(nullptr);
+            // 空维度，自动补0
+            int64_t lineNo = ctx->T_L_BRACKET(i)->getSymbol()->getLine();
+            auto * zero_dim = ast_node::New(digit_int_attr{0, lineNo});
+            dims_node->insert_son_node(zero_dim);
         }
     }
     return dims_node;

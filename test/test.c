@@ -1,12 +1,12 @@
-
-
+int sum(int b[])
+{
+    return 0;
+}
 
 int main()
 {
 
-    int c[1];
-    c[0] =1;
-    int d[2][2];
-	d[1][1]=2;
-    return d[1][1]=2;
+    int a[1];
+    a[0]=1;
+	return 0;
 }

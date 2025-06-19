@@ -346,63 +346,78 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
             return false;
         }
 
-        // 形参节点包含两个子节点：
-        // 第一个节点：形参类型节点
-        // 第二个节点：形参名节点
-        if (son->sons.size() < 2) {
+        // 新AST结构：formal-param下只有一个array-decl或(type+name)
+        if (son->sons.size() == 1 && son->sons[0]->node_type == ast_operator_type::AST_OP_ARRAY_DECL) {
+            ast_node * arrayNode = son->sons[0];
+            // arrayNode的子节点依次为：类型、变量名、维度
+            if (arrayNode->sons.size() < 3) {
+                minic_log(LOG_ERROR, "数组形参节点格式错误：子节点数量(%d)小于3", (int) arrayNode->sons.size());
+                return false;
+            }
+            /* ast_node * typeNode = arrayNode->sons[0]; */
+            ast_node * nameNode = arrayNode->sons[1];
+            // 维度节点暂不需要用
+            std::string paramName = nameNode->name;
+            Type * paramType = arrayNode->type;
+            // 创建形参对象
+            FormalParam * formalParam = new FormalParam(paramType, paramName);
+            if (!formalParam) {
+                minic_log(LOG_ERROR, "创建数组形参对象失败");
+                return false;
+            }
+            currentFunc->getParams().push_back(formalParam);
+            // 创建形参局部变量
+            LocalVariable * paramVar = currentFunc->newLocalVarValue(paramType, paramName);
+            if (!paramVar) {
+                minic_log(LOG_ERROR, "创建数组形参局部变量失败");
+                return false;
+            }
+            // 添加参数赋值指令
+            MoveInstruction * moveInst = new MoveInstruction(currentFunc, paramVar, formalParam);
+            if (!moveInst) {
+                minic_log(LOG_ERROR, "创建数组参数赋值指令失败");
+                return false;
+            }
+            node->blockInsts.addInst(moveInst);
+        } else if (son->sons.size() >= 2) {
+            // 普通参数逻辑
+            if (son->sons[1]->name.empty()) {
+                minic_log(LOG_ERROR, "形参名为空");
+                return false;
+            }
+            // 获取形参类型
+            Type * type = son->sons[0]->type;
+            if (!type) {
+                minic_log(LOG_ERROR, "形参类型无效");
+                return false;
+            }
+            // 获取形参名
+            std::string paramName = son->sons[1]->name;
+            // 创建形参对象
+            FormalParam * formalParam = new FormalParam(type, paramName);
+            if (!formalParam) {
+                minic_log(LOG_ERROR, "创建形参对象失败");
+                return false;
+            }
+            // 将形参对象添加到函数的参数列表中
+            currentFunc->getParams().push_back(formalParam);
+            // 创建形参局部变量
+            LocalVariable * paramVar = currentFunc->newLocalVarValue(type, paramName);
+            if (!paramVar) {
+                minic_log(LOG_ERROR, "创建形参局部变量失败");
+                return false;
+            }
+            // 添加参数赋值指令
+            MoveInstruction * moveInst = new MoveInstruction(currentFunc, paramVar, formalParam);
+            if (!moveInst) {
+                minic_log(LOG_ERROR, "创建参数赋值指令失败");
+                return false;
+            }
+            node->blockInsts.addInst(moveInst);
+        } else {
             minic_log(LOG_ERROR, "形参节点格式错误：子节点数量(%d)小于2", (int) son->sons.size());
             return false;
         }
-
-        if (!son->sons[0]) {
-            minic_log(LOG_ERROR, "形参类型节点无效");
-            return false;
-        }
-
-        if (!son->sons[1]) {
-            minic_log(LOG_ERROR, "形参名节点无效");
-            return false;
-        }
-
-        if (son->sons[1]->name.empty()) {
-            minic_log(LOG_ERROR, "形参名为空");
-            return false;
-        }
-
-        // 获取形参类型
-        Type * type = son->sons[0]->type;
-        if (!type) {
-            minic_log(LOG_ERROR, "形参类型无效");
-            return false;
-        }
-
-        // 获取形参名
-        std::string paramName = son->sons[1]->name;
-
-        // 创建形参对象
-        FormalParam * formalParam = new FormalParam(type, paramName);
-        if (!formalParam) {
-            minic_log(LOG_ERROR, "创建形参对象失败");
-            return false;
-        }
-
-        // 将形参对象添加到函数的参数列表中
-        currentFunc->getParams().push_back(formalParam);
-
-        // 创建形参局部变量
-        LocalVariable * paramVar = currentFunc->newLocalVarValue(type, paramName);
-        if (!paramVar) {
-            minic_log(LOG_ERROR, "创建形参局部变量失败");
-            return false;
-        }
-
-        // 添加参数赋值指令
-        MoveInstruction * moveInst = new MoveInstruction(currentFunc, paramVar, formalParam);
-        if (!moveInst) {
-            minic_log(LOG_ERROR, "创建参数赋值指令失败");
-            return false;
-        }
-        node->blockInsts.addInst(moveInst);
     }
 
     return true;
