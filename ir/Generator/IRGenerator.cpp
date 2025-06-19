@@ -844,53 +844,47 @@ bool IRGenerator::ir_assign(ast_node * node)
     }
 
     // 赋值节点，自右往左运算
-
-    // 赋值运算符的左侧操作数
     ast_node * left = ir_visit_ast_node(son1_node);
     if (!left) {
         minic_log(LOG_ERROR, "赋值语句左操作数处理失败");
         return false;
     }
-
     if (!left->val) {
         minic_log(LOG_ERROR, "赋值语句左操作数值无效");
         return false;
     }
-
-    // 赋值运算符的右侧操作数
     ast_node * right = ir_visit_ast_node(son2_node);
     if (!right) {
         minic_log(LOG_ERROR, "赋值语句右操作数处理失败");
         return false;
     }
-
     if (!right->val) {
         minic_log(LOG_ERROR, "赋值语句右操作数值无效");
         return false;
     }
-
-    // 获取当前函数
     Function * currentFunc = module->getCurrentFunction();
     if (!currentFunc) {
         minic_log(LOG_ERROR, "当前函数未定义");
         return false;
     }
 
-    // 这里只处理整型的数据，如需支持实数，则需要针对类型进行处理
-    MoveInstruction * movInst = new MoveInstruction(currentFunc, left->val, right->val);
-    if (!movInst) {
-        minic_log(LOG_ERROR, "创建移动指令失败");
+    Instruction * assignInst = nullptr;
+    // 判断左值是否为数组元素
+    if (son1_node->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+        // 左值是数组元素，生成store指令
+        assignInst = new StoreInstruction(currentFunc, left->val, right->val);
+    } else {
+        // 普通变量赋值
+        assignInst = new MoveInstruction(currentFunc, left->val, right->val);
+    }
+    if (!assignInst) {
+        minic_log(LOG_ERROR, "创建赋值指令失败");
         return false;
     }
-
-    // 创建临时变量保存IR的值，以及线性IR指令
     node->blockInsts.addInst(right->blockInsts);
     node->blockInsts.addInst(left->blockInsts);
-    node->blockInsts.addInst(movInst);
-
-    // 这里假定赋值的类型是一致的
-    node->val = movInst;
-
+    node->blockInsts.addInst(assignInst);
+    node->val = assignInst;
     return true;
 }
 

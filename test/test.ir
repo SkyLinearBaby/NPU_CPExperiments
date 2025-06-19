@@ -1,16 +1,42 @@
-declare i32 @a[1]
-declare i32 @b[1][2]
 define i32 @main()
 {
 	declare i32 %l0
 	declare i32 %l1[1] ; 1:c
 	declare i32 %l2[2][2] ; 1:d
+	declare i32 %t4
+	declare i32* %t5
+	declare i32 %t7
+	declare i32[2]* %t8
+	declare i32 %t9[2]
+	declare i32 %t10
+	declare i32* %t11
+	declare i32 %t12
+	declare i32[2]* %t13
+	declare i32 %t14[2]
+	declare i32 %t15
+	declare i32* %t16
+	declare i32 %t17
 	entry
 	%l0 = 0
 .L3:
-.L4:
-	%l0 = 0
-	br label .L5
-.L5:
+	%t4 = mul 0,4
+	%t5 = add %l1,%t4
+	*%t5 = 1
+.L6:
+	%t7 = mul 1,8
+	%t8 = add %l2,%t7
+	%t9 = *%t8
+	%t10 = mul 1,4
+	%t11 = add %t9,%t10
+	*%t11 = 2
+	%t12 = mul 1,8
+	%t13 = add %l2,%t12
+	%t14 = *%t13
+	%t15 = mul 1,4
+	%t16 = add %t14,%t15
+	%t17 = *%t16
+	%l0 = %t17
+	br label .L18
+.L18:
 	exit %l0
 }
