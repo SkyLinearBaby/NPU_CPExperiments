@@ -1029,31 +1029,34 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
 
         // 获取变量名
         ast_node * nameNode = child->sons[1];
-        if (!nameNode) {
-            minic_log(LOG_ERROR, "变量名节点无效");
-            continue;
+        std::string varName;
+        if (nameNode->node_type == ast_operator_type::AST_OP_ARRAY_DECL) {
+            if (!nameNode->sons.empty() && nameNode->sons[0]) {
+                varName = nameNode->sons[0]->name;
+            }
+        } else {
+            varName = nameNode->name;
         }
-
-        if (nameNode->name.empty()) {
+        if (varName.empty()) {
             minic_log(LOG_ERROR, "变量名为空");
             continue;
         }
 
         // 检查变量是否已经声明
-        if (declaredVars.find(nameNode->name) != declaredVars.end()) {
-            minic_log(LOG_ERROR, "变量(%s)重复声明", nameNode->name.c_str());
+        if (declaredVars.find(varName) != declaredVars.end()) {
+            minic_log(LOG_ERROR, "变量(%s)重复声明", varName.c_str());
             return false;
         }
 
         // 遍历每个变量声明
         result = ir_variable_declare(child);
         if (!result) {
-            minic_log(LOG_ERROR, "变量(%s)声明处理失败", nameNode->name.c_str());
+            minic_log(LOG_ERROR, "变量(%s)声明处理失败", varName.c_str());
             break;
         }
 
         // 记录已声明的变量
-        declaredVars.insert(nameNode->name);
+        declaredVars.insert(varName);
 
         // 将变量声明的指令添加到当前节点的指令列表中
         node->blockInsts.addInst(child->blockInsts);
@@ -1075,86 +1078,107 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
     ast_node * typeNode = node->sons[0];
     ast_node * nameNode = node->sons[1];
 
-    if (!typeNode || !nameNode) {
-        minic_log(LOG_ERROR, "变量声明类型或名称节点无效");
-        return false;
+    std::string varName;
+    Type * varType = nullptr;
+
+    if (nameNode->node_type == ast_operator_type::AST_OP_ARRAY_DECL) {
+        if (!ir_arraytype(nameNode)) {
+            minic_log(LOG_ERROR, "数组类型节点处理失败");
+            return false;
+        }
+        if (nameNode->sons.size() < 1 || !nameNode->sons[0]) {
+            minic_log(LOG_ERROR, "数组声明节点无变量名");
+            return false;
+        }
+        varName = nameNode->sons[0]->name;
+        varType = nameNode->type;
+    } else {
+        varName = nameNode->name;
+        varType = typeNode->type;
     }
 
-    if (!typeNode->type) {
-        minic_log(LOG_ERROR, "变量声明类型无效");
-        return false;
-    }
-
-    if (nameNode->name.empty()) {
+    if (varName.empty()) {
         minic_log(LOG_ERROR,
                   "变量名无效: 节点类型=%d, 子节点数量=%d",
                   (int) nameNode->node_type,
                   (int) nameNode->sons.size());
         return false;
     }
+    if (!varType) {
+        minic_log(LOG_ERROR, "变量类型无效");
+        return false;
+    }
 
-    // 获取当前函数
     Function * currentFunc = module->getCurrentFunction();
 
-    // 如果是全局变量（currentFunc为nullptr）
+    std::string varNameWithDims = "@" + varName;
+    std::string typeStr = varType->toString(); // fallback
+
+    if (varType->isArrayType()) {
+        const ArrayType * arrType = static_cast<const ArrayType *>(varType);
+        const Type * baseType = arrType->getBaseElementType();
+        typeStr = baseType ? baseType->toString() : "void";
+
+        std::vector<uint32_t> dims = arrType->getDimensions();
+        for (uint32_t dim: dims) {
+            varNameWithDims += "[" + std::to_string(dim) + "]";
+        }
+    }
+
+    std::string declareStr = "declare " + typeStr + " " + varNameWithDims;
+
+    // 调试输出IR声明格式
+    minic_log(LOG_DEBUG,
+              "IR变量声明格式: %s (文件: %s, 函数: %s, 行: %d)",
+              declareStr.c_str(),
+              __FILE__,
+              __FUNCTION__,
+              __LINE__);
+
     if (!currentFunc) {
-        // 创建全局变量
-        Value * var = module->newVarValue(typeNode->type, nameNode->name);
+        // 全局变量
+        Value * var = module->newVarValue(varType, varName);
         if (!var) {
-            minic_log(LOG_ERROR, "创建全局变量(%s)失败", nameNode->name.c_str());
+            minic_log(LOG_ERROR, "创建全局变量(%s)失败", varName.c_str());
             return false;
         }
-        // 添加全局变量声明指令
-        if (auto globalVar = dynamic_cast<GlobalValue *>(var)) {
-            std::string declareStr = "declare " + typeNode->type->toString() + " " + globalVar->getDeclareIRName();
-            LabelInstruction * labelInst = new LabelInstruction(nullptr);
-            labelInst->setIRName(declareStr);
-            node->blockInsts.addInst(labelInst);
-        }
+        LabelInstruction * labelInst = new LabelInstruction(nullptr);
+        labelInst->setIRName(declareStr);
+        node->blockInsts.addInst(labelInst);
         node->val = var;
         return true;
     }
 
-    // 创建局部变量并添加到函数的作用域
-    LocalVariable * var = currentFunc->newLocalVarValue(typeNode->type, nameNode->name);
+    // 局部变量
+    LocalVariable * var = currentFunc->newLocalVarValue(varType, varName);
     if (!var) {
-        minic_log(LOG_ERROR, "创建变量(%s)失败", nameNode->name.c_str());
+        minic_log(LOG_ERROR, "创建变量(%s)失败", varName.c_str());
         return false;
     }
-
-    // 设置节点的值为新创建的变量
     node->val = var;
 
-    // 检查是否有初始化表达式
+    if (!varName.empty()) {
+        declareStr += " ; " + std::to_string(node->line_no) + ":" + varName;
+    }
+
+    LabelInstruction * labelInst = new LabelInstruction(currentFunc);
+    labelInst->setIRName(declareStr);
+    node->blockInsts.addInst(labelInst);
+
+    // 初始化表达式处理
     if (node->sons.size() > 2) {
         ast_node * initNode = node->sons[2];
         if (initNode) {
-            // 检查初始化节点
-            if (!initNode) {
-                minic_log(LOG_ERROR, "变量(%s)初始化节点无效", nameNode->name.c_str());
-                return false;
-            }
-
-            // 处理初始化表达式
             ast_node * initValue = ir_visit_ast_node(initNode);
-            if (!initValue) {
-                minic_log(LOG_ERROR, "变量(%s)初始化表达式处理失败", nameNode->name.c_str());
+            if (!initValue || !initValue->val) {
+                minic_log(LOG_ERROR, "变量(%s)初始化表达式处理失败", varName.c_str());
                 return false;
             }
-
-            if (!initValue->val) {
-                minic_log(LOG_ERROR, "变量(%s)初始化值无效", nameNode->name.c_str());
-                return false;
-            }
-
-            // 添加初始化指令
             MoveInstruction * moveInst = new MoveInstruction(currentFunc, var, initValue->val);
             if (!moveInst) {
-                minic_log(LOG_ERROR, "创建变量(%s)初始化指令失败", nameNode->name.c_str());
+                minic_log(LOG_ERROR, "创建变量(%s)初始化指令失败", varName.c_str());
                 return false;
             }
-
-            // 将初始化指令添加到当前节点的指令列表中
             node->blockInsts.addInst(initValue->blockInsts);
             node->blockInsts.addInst(moveInst);
         }

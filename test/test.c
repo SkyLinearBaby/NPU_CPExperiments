@@ -1,13 +1,10 @@
-int sum(int a[],int b[1],int c[][])
-{
-    return 0;
-}
-int a[10];
+
+int a[1];
+int b[1][2];
 int main()
 {
-	int a =1;
-    int b[2][2];
-    a[0] = 1;
-    a = a[0];
+    int c[1];
+    int d[2][2];
+
     return 0;
 }

@@ -3,6 +3,7 @@
 /// @brief 数组类型描述类
 ///
 #pragma once
+#include <vector>
 
 #include "Type.h"
 #include "StorageSet.h"
@@ -111,6 +112,8 @@ public:
         static StorageSet<ArrayType, ArrayTypeHasher, ArrayTypeEqual> storageSet;
         return storageSet.get(elemType, numElements);
     }
+    const Type * getBaseElementType() const;
+    std::vector<uint32_t> getDimensions() const;
 
 private:
     Type * elementType;   // 元素类型

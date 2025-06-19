@@ -19,6 +19,7 @@
 
 #include "IRConstant.h"
 #include "Function.h"
+#include "Types/ArrayType.h"
 
 /// @brief 指定函数名字、函数类型的构造函数
 /// @param _name 函数名称
@@ -103,8 +104,19 @@ void Function::toString(std::string & str)
     // 输出局部变量的名字与IR名字
     for (auto & var: this->varsVector) {
 
-        // 局部变量和临时变量需要输出declare语句
-        str += "\tdeclare " + var->getType()->toString() + " " + var->getIRName();
+        // 修复数组类型变量的declare格式
+        std::string typeStr = var->getType()->toString();
+        std::string varNameWithDims = var->getIRName();
+        if (var->getType()->isArrayType()) {
+            const ArrayType * arrType = static_cast<const ArrayType *>(var->getType());
+            const Type * baseType = arrType->getBaseElementType();
+            typeStr = baseType ? baseType->toString() : "void";
+            std::vector<uint32_t> dims = arrType->getDimensions();
+            for (uint32_t dim: dims) {
+                varNameWithDims += "[" + std::to_string(dim) + "]";
+            }
+        }
+        str += "\tdeclare " + typeStr + " " + varNameWithDims;
 
         std::string realName = var->getName();
         if (!realName.empty()) {
@@ -119,9 +131,19 @@ void Function::toString(std::string & str)
     for (auto & inst: code.getInsts()) {
 
         if (inst->hasResultValue()) {
-
-            // 局部变量和临时变量需要输出declare语句
-            str += "\tdeclare " + inst->getType()->toString() + " " + inst->getIRName() + "\n";
+            // 修复临时变量declare格式
+            std::string typeStr = inst->getType()->toString();
+            std::string varNameWithDims = inst->getIRName();
+            if (inst->getType()->isArrayType()) {
+                const ArrayType * arrType = static_cast<const ArrayType *>(inst->getType());
+                const Type * baseType = arrType->getBaseElementType();
+                typeStr = baseType ? baseType->toString() : "void";
+                std::vector<uint32_t> dims = arrType->getDimensions();
+                for (uint32_t dim: dims) {
+                    varNameWithDims += "[" + std::to_string(dim) + "]";
+                }
+            }
+            str += "\tdeclare " + typeStr + " " + varNameWithDims + "\n";
         }
     }
 
