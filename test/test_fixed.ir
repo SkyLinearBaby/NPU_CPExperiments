@@ -1,6 +1,12 @@
 declare i32 @map[10][10]
 declare i32 @indegree[10]
 declare i32 @queue[10]
+declare void @putint(i32);
+declare void @putch(i32);
+declare i32 @getint();
+declare i32 @getch();
+declare void @putarray(i32, i32*);
+declare i32 @getarray(i32*);
 define void @topo(i32 %t0)
 {
 	declare i32 %l1 ; 1:n
@@ -40,9 +46,6 @@ define void @topo(i32 %t0)
 	declare i32* %t56
 	declare i32 %t57
 	declare i32 %t58
-	declare i32 %t59
-	declare i32 %t60
-	declare i32 %t61
 	entry
 	%l1 = %t0
 .L7:
@@ -118,22 +121,19 @@ define void @topo(i32 %t0)
 	%l4 = 0
 .L52:
 	%t53 = icmp lt %l4,%l1
-	bc %t53, label .L54, label .L62
+	bc %t53, label .L54, label .L59
 .L54:
 	%t55 = mul %l4,4
 	%t56 = add @queue,%t55
 	%t57 = *%t56
-	%t58 = mul %l4,1
-	%t59 = mul %t58,4
-	%t60 = add @queue,%t59
-	call void @putint(i32 %t60)
+	call void @putint(i32 %t57)
 	%l6 = 10
 	call void @putch(i32 %l6)
-	%t61 = add %l4,1
-	%l4 = %t61
+	%t58 = add %l4,1
+	%l4 = %t58
 	br label .L52
-.L62:
-.L63:
+.L59:
+.L60:
 	exit
 }
 define i32 @main()

@@ -78,7 +78,7 @@ bool Function::isBuiltin()
 void Function::toString(std::string & str)
 {
     if (builtIn) {
-        // 内置函数则什么都不输出
+        // 内置函数不输出任何内容，让IRCompiler自己处理
         return;
     }
 

@@ -525,6 +525,17 @@ bool IRGenerator::ir_function_call(ast_node * node)
             if (son->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
                 minic_log(LOG_DEBUG, "处理数组访问参数");
 
+                // 检查temp->val的类型，如果已经是最终元素类型（不是指针类型），
+                // 说明数组访问已经被正确处理为值，不需要重新计算地址
+                Type * paramType = temp->val->getType();
+                if (!paramType->isPointerType()) {
+                    // 数组访问已经被处理为值，直接使用
+                    minic_log(LOG_DEBUG, "数组访问已处理为值，直接使用");
+                    node->blockInsts.addInst(temp->blockInsts);
+                    realParams.push_back(temp->val);
+                    continue;
+                }
+
                 // 对于数组访问如 a[i]，需要计算元素地址
                 Type * arrayType = temp->val->getType();
 
@@ -2260,7 +2271,6 @@ bool IRGenerator::ir_arrayaccess(ast_node * node)
     // 步骤3: 根据上下文决定是返回地址还是加载值
     LoadInstruction * loadInst = nullptr;
 
-    // 只有在数组访问作为右值时才创建加载指令
     // 判断该节点是否是赋值语句的左侧
     bool isLeftValueOfAssign = false;
     if (node->parent && node->parent->node_type == ast_operator_type::AST_OP_ASSIGN) {
@@ -2270,9 +2280,25 @@ bool IRGenerator::ir_arrayaccess(ast_node * node)
         }
     }
 
-    // 对于多维数组访问，只有最内层的访问才需要加载值
-    // 如果元素类型仍然是数组类型，则不需要加载
+    // 判断是否需要加载值
+    // 1. 如果是赋值语句的左值，不需要加载
+    // 2. 如果元素类型仍然是数组类型，不需要加载（多维数组访问）
+    // 3. 其他情况都需要加载值（包括逻辑表达式中的数组访问）
     bool needLoad = !isLeftValueOfAssign && !element_type->isArrayType();
+
+    // 特殊处理：在逻辑表达式中，数组访问应该被当作值处理
+    // 检查父节点是否是逻辑运算符或关系运算符
+    if (!needLoad && node->parent) {
+        ast_operator_type parentType = node->parent->node_type;
+        if (parentType == ast_operator_type::AST_OP_LOGICAL_AND || parentType == ast_operator_type::AST_OP_LOGICAL_OR ||
+            parentType == ast_operator_type::AST_OP_LOGICAL_NOT || parentType == ast_operator_type::AST_OP_EQ ||
+            parentType == ast_operator_type::AST_OP_NEQ || parentType == ast_operator_type::AST_OP_LT ||
+            parentType == ast_operator_type::AST_OP_GT || parentType == ast_operator_type::AST_OP_LE ||
+            parentType == ast_operator_type::AST_OP_GE) {
+            // 在逻辑表达式中，需要加载数组元素的值
+            needLoad = true;
+        }
+    }
 
     if (needLoad) {
         // 作为右值使用，需要加载元素值
