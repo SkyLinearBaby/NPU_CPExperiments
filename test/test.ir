@@ -1,44 +1,40 @@
-define i32 @sum(i32 %t0[0])
-{
-	declare i32 %l1[0] ; 1:b
-	declare i32 %l2
-	declare i32 %t3
-	declare i32* %t4
-	declare i32 %t5
-	declare i32 %t6
-	entry
-	%l1 = %t0
-	%t3 = mul 0,4
-	%t4 = add %l1,%t3
-	%t5 = *%t4
-	%t6 = add %t5,1
-	%l2 = %t6
-	br label .L7
-.L7:
-	exit %l2
-}
 define i32 @main()
 {
 	declare i32 %l0
-	declare i32 %l1[1] ; 1:a
-	declare i32 %t3
-	declare i32* %t4
-	declare i32 %t5
+	declare i32 %l1[10][10] ; 1:a
+	declare i32 %l2 ; 1:m
+	declare i32 %l3 ; 1:k
+	declare i32 %l4 ; 1:t
 	declare i32 %t6
 	declare i32* %t7
 	declare i32 %t8
+	declare i32* %t9
+	declare i32 %t13
+	declare i32* %t14
+	declare i32 %t15
+	declare i32* %t16
+	declare i32 %t17
 	entry
 	%l0 = 0
-.L2:
-	%t3 = mul 0,4
-	%t4 = add %l1,%t3
-	*%t4 = 1
-	%t5 = call i32 @sum(i32 %l1)
-	%t6 = mul 0,4
+.L5:
+	%t6 = mul 1,400
 	%t7 = add %l1,%t6
-	%t8 = *%t7
-	%l0 = %t8
-	br label .L9
-.L9:
+	%t8 = mul 1,4
+	%t9 = add %t7,%t8
+	*%t9 = 1
+.L10:
+	%l2 = 1
+.L11:
+	%l3 = 1
+.L12:
+	%t13 = mul %l2,400
+	%t14 = add %l1,%t13
+	%t15 = mul %l3,4
+	%t16 = add %t14,%t15
+	%t17 = *%t16
+	%l4 = %t17
+	%l0 = %l4
+	br label .L18
+.L18:
 	exit %l0
 }

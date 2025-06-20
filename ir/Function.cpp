@@ -21,6 +21,7 @@
 #include "IRConstant.h"
 #include "Function.h"
 #include "Types/ArrayType.h"
+#include "Types/PointerType.h"
 
 /// @brief 指定函数名字、函数类型的构造函数
 /// @param _name 函数名称
@@ -169,9 +170,18 @@ void Function::toString(std::string & str)
                 const ArrayType * arrType = static_cast<const ArrayType *>(inst->getType());
                 const Type * baseType = arrType->getBaseElementType();
                 typeStr = baseType ? baseType->toString() : "void";
-                std::vector<uint32_t> dims = arrType->getDimensions();
-                for (uint32_t dim: dims) {
-                    varNameWithDims += "[" + std::to_string(dim) + "]";
+                // 移除维度信息拼接，保持变量名简洁
+            } else if (inst->getType()->isPointerType()) {
+                // 处理指针类型，确保不包含维度信息
+                const PointerType * ptrType = static_cast<const PointerType *>(inst->getType());
+                const Type * pointeeType = ptrType->getPointeeType();
+                if (pointeeType->isArrayType()) {
+                    // 如果指向数组类型，只显示基本类型
+                    const ArrayType * arrType = static_cast<const ArrayType *>(pointeeType);
+                    const Type * baseType = arrType->getBaseElementType();
+                    typeStr = (baseType ? baseType->toString() : "void") + "*";
+                } else {
+                    typeStr = pointeeType->toString() + "*";
                 }
             }
             str += "\tdeclare " + typeStr + " " + varNameWithDims + "\n";

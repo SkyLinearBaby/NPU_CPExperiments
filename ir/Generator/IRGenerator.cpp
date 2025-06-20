@@ -1211,18 +1211,26 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
 
     Function * currentFunc = module->getCurrentFunction();
 
-    std::string varNameWithDims = "@" + varName;
-    std::string typeStr = varType->toString(); // fallback
+    // 修复IR声明格式
+    std::string typeStr;
+    std::string varNameWithDims;
 
     if (varType->isArrayType()) {
+        // 数组类型：只显示基本类型，不显示维度
         const ArrayType * arrType = static_cast<const ArrayType *>(varType);
         const Type * baseType = arrType->getBaseElementType();
         typeStr = baseType ? baseType->toString() : "void";
 
+        // 变量名包含维度信息
+        varNameWithDims = "@" + varName;
         std::vector<uint32_t> dims = arrType->getDimensions();
         for (uint32_t dim: dims) {
             varNameWithDims += "[" + std::to_string(dim) + "]";
         }
+    } else {
+        // 普通类型
+        typeStr = varType->toString();
+        varNameWithDims = "@" + varName;
     }
 
     std::string declareStr = "declare " + typeStr + " " + varNameWithDims;
@@ -2154,7 +2162,7 @@ bool IRGenerator::ir_arrayaccess(ast_node * node)
         return false;
     }
 
-    // 处理数组变量
+    // 处理数组变量（可能是嵌套的数组访问）
     ast_node * array_node = ir_visit_ast_node(node->sons[0]);
     if (!array_node || !array_node->val) {
         minic_log(LOG_ERROR, "处理数组变量失败");
@@ -2177,36 +2185,69 @@ bool IRGenerator::ir_arrayaccess(ast_node * node)
         return false;
     }
 
-    minic_log(LOG_DEBUG, "数组访问: 类型ID=%d", static_cast<int>(array_type->getTypeID()));
+    minic_log(LOG_DEBUG,
+              "数组访问: 类型ID=%d, 类型=%s",
+              static_cast<int>(array_type->getTypeID()),
+              array_type->toString().c_str());
 
     // 确定元素类型和大小
     Type * element_type = nullptr;
     int32_t elem_size = 4; // 默认4字节
+    int32_t row_size = 4;  // 行大小，用于多维数组
 
     if (array_type->isArrayType()) {
         const ArrayType * arrayType = static_cast<const ArrayType *>(array_type);
         element_type = arrayType->getElementType();
         elem_size = element_type->getSize();
+
+        // 计算行大小：当前维度的元素数量 * 元素大小
+        row_size = arrayType->getNumElements() * elem_size;
+
+        // 如果元素类型仍然是数组，需要计算整个子数组的大小
+        if (element_type->isArrayType()) {
+            const ArrayType * subArrayType = static_cast<const ArrayType *>(element_type);
+            row_size = subArrayType->getNumElements() * elem_size;
+        }
+
+        minic_log(LOG_DEBUG,
+                  "数组类型: 元素类型=%s, 元素大小=%d, 行大小=%d",
+                  element_type->toString().c_str(),
+                  elem_size,
+                  row_size);
     } else if (array_type->isPointerType()) {
         // 处理指针类型
         const PointerType * ptrType = static_cast<const PointerType *>(array_type);
         element_type = const_cast<Type *>(ptrType->getPointeeType());
         elem_size = element_type->getSize();
+        row_size = elem_size; // 指针类型，行大小等于元素大小
+
+        minic_log(LOG_DEBUG, "指针类型: 指向类型=%s, 元素大小=%d", element_type->toString().c_str(), elem_size);
     } else {
-        minic_log(LOG_ERROR, "变量不是数组或指针类型");
+        minic_log(LOG_ERROR, "变量不是数组或指针类型: %s", array_type->toString().c_str());
         return false;
     }
 
-    // 步骤1: 计算偏移量 (index * 元素大小)
+    // 对于多维数组访问，我们需要找到最终的元素类型
+    // 如果当前element_type仍然是数组类型，我们需要继续查找
+    Type * final_element_type = element_type;
+    while (final_element_type->isArrayType()) {
+        const ArrayType * arrType = static_cast<const ArrayType *>(final_element_type);
+        final_element_type = const_cast<Type *>(arrType->getElementType());
+    }
+
+    // 步骤1: 计算偏移量
+    // 对于多维数组，使用行大小；对于单维数组或指针，使用元素大小
+    int32_t offset_multiplier = (array_type->isArrayType() && element_type->isArrayType()) ? row_size : elem_size;
+
     BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
                                                         IRInstOperator::IRINST_OP_MUL_I,
                                                         index_node->val,
-                                                        module->newConstInt(elem_size),
+                                                        module->newConstInt(offset_multiplier),
                                                         IntegerType::getTypeInt());
 
     // 步骤2: 计算元素地址 (base + offset)
-    // 创建指针类型，指向元素类型
-    const PointerType * ptr_type = PointerType::get(element_type);
+    // 创建指针类型，指向最终元素类型
+    const PointerType * ptr_type = PointerType::get(final_element_type);
     Type * address_type = const_cast<PointerType *>(ptr_type);
 
     BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
@@ -2229,9 +2270,13 @@ bool IRGenerator::ir_arrayaccess(ast_node * node)
         }
     }
 
-    if (!isLeftValueOfAssign) {
+    // 对于多维数组访问，只有最内层的访问才需要加载值
+    // 如果元素类型仍然是数组类型，则不需要加载
+    bool needLoad = !isLeftValueOfAssign && !element_type->isArrayType();
+
+    if (needLoad) {
         // 作为右值使用，需要加载元素值
-        loadInst = new LoadInstruction(currentFunc, addInst, element_type);
+        loadInst = new LoadInstruction(currentFunc, addInst, final_element_type);
     }
 
     // 收集指令
@@ -2242,13 +2287,12 @@ bool IRGenerator::ir_arrayaccess(ast_node * node)
 
     if (loadInst) {
         node->blockInsts.addInst(loadInst);
-        node->val = loadInst; // 访问结果是加载的值
+        node->val = loadInst;            // 访问结果是加载的值
+        node->type = final_element_type; // 保存最终元素类型
     } else {
-        node->val = addInst; // 访问结果是地址
+        node->val = addInst;       // 访问结果是地址
+        node->type = address_type; // 保存指针类型
     }
-
-    // 保存元素类型
-    node->type = element_type;
 
     return true;
 }
