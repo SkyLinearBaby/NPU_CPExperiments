@@ -17,6 +17,7 @@
 #include "Function.h"
 #include "Common.h"
 #include "Type.h"
+#include "Types/ArrayType.h"
 
 /// @brief 含有参数的函数调用
 /// @param srcVal 函数的实参Value
@@ -70,7 +71,20 @@ void FuncCallInstruction::toString(std::string & str)
 
             auto operand = getOperand(k);
 
-            str += operand->getType()->toString() + " " + operand->getIRName();
+            // 对于数组参数，只输出基类型，不输出维度信息
+            std::string typeStr;
+            if (operand->getType()->isArrayType()) {
+                const ArrayType * arrType = static_cast<const ArrayType *>(operand->getType());
+                const Type * baseType = arrType->getBaseElementType();
+                while (baseType && baseType->isArrayType()) {
+                    baseType = static_cast<const ArrayType *>(baseType)->getBaseElementType();
+                }
+                typeStr = baseType ? baseType->toString() : "void";
+            } else {
+                typeStr = operand->getType()->toString();
+            }
+
+            str += typeStr + " " + operand->getIRName();
 
             if (k != (operandsNum - 1)) {
                 str += ", ";

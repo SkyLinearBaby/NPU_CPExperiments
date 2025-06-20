@@ -508,6 +508,74 @@ bool IRGenerator::ir_function_call(ast_node * node)
                 return false;
             }
 
+            // 数组类型参数特殊处理
+            if (temp->val->getType()->isArrayType()) {
+                minic_log(LOG_DEBUG, "处理数组类型参数: %s", temp->val->getType()->toString().c_str());
+
+                // 对于数组参数，直接传递数组的基址，不需要创建临时变量
+                // 将指令添加到当前节点的指令列表中
+                node->blockInsts.addInst(temp->blockInsts);
+
+                // 将数组基址添加到实参列表中
+                realParams.push_back(temp->val);
+                continue;
+            }
+
+            // 数组访问作为参数的特殊处理
+            if (son->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS) {
+                minic_log(LOG_DEBUG, "处理数组访问参数");
+
+                // 对于数组访问如 a[i]，需要计算元素地址
+                Type * arrayType = temp->val->getType();
+
+                // 计算数组基址，这是形如a[k]中计算元素地址的指令
+                // 对于多维数组a[k]作为参数传递，应该传递a[k]的基址，而非a[k][0]的地址
+
+                // 计算当前数组中的元素总数（后续所有维度的乘积）
+                int totalElems = 1;
+                if (arrayType->isArrayType()) {
+                    const ArrayType * arrType = static_cast<const ArrayType *>(arrayType);
+                    Type * elemType = arrType->getElementType();
+                    while (elemType->isArrayType()) {
+                        const ArrayType * subArrayType = static_cast<const ArrayType *>(elemType);
+                        totalElems *= subArrayType->getNumElements();
+                        elemType = subArrayType->getElementType();
+                    }
+                }
+
+                // 创建一个乘法指令: %t22=mul index,totalElems
+                BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
+                                                                    IRInstOperator::IRINST_OP_MUL_I,
+                                                                    son->sons[1]->val, // 索引
+                                                                    module->newConstInt(totalElems),
+                                                                    IntegerType::getTypeInt());
+
+                // 计算字节大小的偏移量: %t24=mul %t22,4
+                BinaryInstruction * mulSizeInst = new BinaryInstruction(currentFunc,
+                                                                        IRInstOperator::IRINST_OP_MUL_I,
+                                                                        mulInst,
+                                                                        module->newConstInt(4), // 假设每个元素4字节
+                                                                        IntegerType::getTypeInt());
+
+                // 计算最终地址: %t23=add base,offset
+                BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                                    IRInstOperator::IRINST_OP_ADD_I,
+                                                                    son->sons[0]->val, // 数组基址
+                                                                    mulSizeInst,
+                                                                    arrayType);
+
+                // 添加指令
+                node->blockInsts.addInst(temp->blockInsts);
+                node->blockInsts.addInst(mulInst);
+                node->blockInsts.addInst(mulSizeInst);
+                node->blockInsts.addInst(addInst);
+
+                // 添加到参数列表
+                realParams.push_back(addInst);
+                continue;
+            }
+
+            // 普通参数处理
             // 创建临时变量来保存实参的值
             LocalVariable * tempVar = currentFunc->newLocalVarValue(temp->val->getType());
             if (!tempVar) {
@@ -551,7 +619,30 @@ bool IRGenerator::ir_function_call(ast_node * node)
             return false;
         }
 
-        // 检查类型是否匹配
+        // 数组参数特殊处理
+        if (formalType->isArrayType() && paramType->isArrayType()) {
+            // 对于数组参数，第一维可以不同，但其他维度必须相同
+            const ArrayType * formalArrayType = static_cast<const ArrayType *>(formalType);
+            const ArrayType * paramArrayType = static_cast<const ArrayType *>(paramType);
+
+            // 如果形参第一维是0，则可以接受任意第一维的实参
+            if (formalArrayType->getNumElements() == 0) {
+                // 验证元素类型
+                Type * formalElemType = const_cast<Type *>(formalArrayType->getElementType());
+                Type * paramElemType = const_cast<Type *>(paramArrayType->getElementType());
+
+                // 检查元素类型是否相同或兼容
+                if (formalElemType->getTypeID() != paramElemType->getTypeID()) {
+                    minic_log(LOG_ERROR, "函数(%s)第%d个数组参数元素类型不匹配", funcName.c_str(), (int) i + 1);
+                    return false;
+                }
+
+                // 元素类型兼容，可以接受
+                continue;
+            }
+        }
+
+        // 普通类型检查
         if (paramType != formalType) {
             minic_log(LOG_ERROR, "函数(%s)第%d个参数类型不匹配", funcName.c_str(), (int) i + 1);
             return false;

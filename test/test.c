@@ -1,12 +1,13 @@
 int sum(int b[])
 {
-    return 0;
+    return b[0]+1;
 }
 
 int main()
 {
 
     int a[1];
-    a[0]=1;
-	return 0;
+    a[0] = 1;
+    sum(a);
+	return a[0];
 }

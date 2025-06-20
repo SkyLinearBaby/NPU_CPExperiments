@@ -2,11 +2,19 @@ define i32 @sum(i32 %t0[0])
 {
 	declare i32 %l1[0] ; 1:b
 	declare i32 %l2
+	declare i32 %t3
+	declare i32* %t4
+	declare i32 %t5
+	declare i32 %t6
 	entry
 	%l1 = %t0
-	%l2 = 0
-	br label .L3
-.L3:
+	%t3 = mul 0,4
+	%t4 = add %l1,%t3
+	%t5 = *%t4
+	%t6 = add %t5,1
+	%l2 = %t6
+	br label .L7
+.L7:
 	exit %l2
 }
 define i32 @main()
@@ -15,14 +23,22 @@ define i32 @main()
 	declare i32 %l1[1] ; 1:a
 	declare i32 %t3
 	declare i32* %t4
+	declare i32 %t5
+	declare i32 %t6
+	declare i32* %t7
+	declare i32 %t8
 	entry
 	%l0 = 0
 .L2:
 	%t3 = mul 0,4
 	%t4 = add %l1,%t3
 	*%t4 = 1
-	%l0 = 0
-	br label .L5
-.L5:
+	%t5 = call i32 @sum(i32 %l1)
+	%t6 = mul 0,4
+	%t7 = add %l1,%t6
+	%t8 = *%t7
+	%l0 = %t8
+	br label .L9
+.L9:
 	exit %l0
 }
