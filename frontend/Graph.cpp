@@ -141,6 +141,18 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_FUNC_FORMAL_PARAM:
             nodeName = "formal-param";
             break;
+        case ast_operator_type::AST_OP_ARRAY_DECL:
+            nodeName = "array-decl";
+            break;
+        case ast_operator_type::AST_OP_ARRAY_DIMS:
+            nodeName = "array-dims";
+            break;
+        case ast_operator_type::AST_OP_ARRAY_INIT:
+            nodeName = "array-init";
+            break;
+        case ast_operator_type::AST_OP_ARRAY_ACCESS:
+            nodeName = "array-access";
+            break;
         default:
             nodeName = "unknown";
             break;

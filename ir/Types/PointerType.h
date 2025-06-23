@@ -51,7 +51,7 @@ class PointerType : public Type {
         ///
         /// @returns true if the two PointerTypes are equal, false otherwise.
         ///
-        size_t operator()(const PointerType & lhs, const PointerType & rhs) const noexcept
+        bool operator()(const PointerType & lhs, const PointerType & rhs) const noexcept
         {
             return lhs.getPointeeType() == rhs.getPointeeType();
         }

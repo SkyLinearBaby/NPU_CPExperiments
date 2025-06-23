@@ -18,6 +18,7 @@
 
 #include "GlobalValue.h"
 #include "IRConstant.h"
+#include "ArrayType.h"
 
 ///
 /// @brief 全局变量，寻址时通过符号名或变量名来寻址
@@ -89,7 +90,36 @@ public:
     ///
     void toDeclareString(std::string & str)
     {
-        str = "declare " + getType()->toString() + " " + getIRName();
+        // 修复全局数组变量declare格式
+        std::string typeStr = getType()->toString();
+        std::string varNameWithDims = getIRName();
+        if (getType()->isArrayType()) {
+            const ArrayType * arrType = static_cast<const ArrayType *>(getType());
+            const Type * baseType = arrType->getBaseElementType();
+            typeStr = baseType ? baseType->toString() : "void";
+            std::vector<uint32_t> dims = arrType->getDimensions();
+            for (uint32_t dim: dims) {
+                varNameWithDims += "[" + std::to_string(dim) + "]";
+            }
+        }
+        str = "declare " + typeStr + " " + varNameWithDims;
+    }
+
+    ///
+    /// @brief 返回带数组维度的变量名
+    /// @return std::string 带数组维度的变量名
+    ///
+    std::string getDeclareIRNameWithDims() const
+    {
+        std::string name = getIRName(); // 例如@b
+        const Type * t = this->type;
+        std::string dims;
+        while (t && t->isArrayType()) {
+            auto arr = static_cast<const ArrayType *>(t);
+            dims += "[" + std::to_string(arr->getNumElements()) + "]";
+            t = arr->getElementType();
+        }
+        return name + dims;
     }
 
 private:

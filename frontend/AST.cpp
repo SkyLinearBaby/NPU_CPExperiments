@@ -76,6 +76,12 @@ bool ast_node::isLeafNode()
         case ast_operator_type::AST_OP_LEAF_TYPE:
             is_leaf = true;
             break;
+        case ast_operator_type::AST_OP_ARRAY_DECL:
+        case ast_operator_type::AST_OP_ARRAY_DIMS:
+        case ast_operator_type::AST_OP_ARRAY_INIT:
+        case ast_operator_type::AST_OP_ARRAY_ACCESS:
+            is_leaf = false;
+            break;
         default:
             is_leaf = false;
             break;

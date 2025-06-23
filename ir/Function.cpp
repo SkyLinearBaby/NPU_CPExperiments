@@ -16,9 +16,12 @@
 
 #include <cstdlib>
 #include <string>
+#include <iostream>
 
 #include "IRConstant.h"
 #include "Function.h"
+#include "Types/ArrayType.h"
+#include "Types/PointerType.h"
 
 /// @brief 指定函数名字、函数类型的构造函数
 /// @param _name 函数名称
@@ -75,7 +78,7 @@ bool Function::isBuiltin()
 void Function::toString(std::string & str)
 {
     if (builtIn) {
-        // 内置函数则什么都不输出
+        // 内置函数不输出任何内容，让IRCompiler自己处理
         return;
     }
 
@@ -91,7 +94,37 @@ void Function::toString(std::string & str)
             str += ", ";
         }
 
-        std::string param_str = param->getType()->toString() + param->getIRName();
+        std::string type_str;
+        std::string name_str = param->getIRName();
+        if (param->getType()->isArrayType()) {
+            // 只输出最内层类型
+            const ArrayType * arrType = static_cast<const ArrayType *>(param->getType());
+            const Type * baseType = arrType->getBaseElementType();
+            while (baseType && baseType->isArrayType()) {
+                baseType = static_cast<const ArrayType *>(baseType)->getBaseElementType();
+            }
+            type_str = baseType ? baseType->toString() : "void";
+            // 不拼接任何维度
+        } else {
+            type_str = param->getType()->toString();
+        }
+        std::string param_str = type_str + " " + name_str;
+
+        // 调试输出参数类型和维度
+        std::cout << "[DEBUG] param IRName: " << param->getIRName() << ", type: " << param->getType()->toString()
+                  << ", isArrayType: " << param->getType()->isArrayType() << std::endl;
+        if (param->getType()->isArrayType()) {
+            const ArrayType * arrType = static_cast<const ArrayType *>(param->getType());
+            std::vector<uint32_t> dims = arrType->getDimensions();
+            std::cout << "[DEBUG] dims: ";
+            for (uint32_t dim: dims) {
+                std::cout << dim << " ";
+            }
+            std::cout << std::endl;
+            for (uint32_t dim: dims) {
+                param_str += "[" + std::to_string(dim) + "]";
+            }
+        }
 
         str += param_str;
     }
@@ -103,8 +136,19 @@ void Function::toString(std::string & str)
     // 输出局部变量的名字与IR名字
     for (auto & var: this->varsVector) {
 
-        // 局部变量和临时变量需要输出declare语句
-        str += "\tdeclare " + var->getType()->toString() + " " + var->getIRName();
+        // 修复数组类型变量的declare格式
+        std::string typeStr = var->getType()->toString();
+        std::string varNameWithDims = var->getIRName();
+        if (var->getType()->isArrayType()) {
+            const ArrayType * arrType = static_cast<const ArrayType *>(var->getType());
+            const Type * baseType = arrType->getBaseElementType();
+            typeStr = baseType ? baseType->toString() : "void";
+            std::vector<uint32_t> dims = arrType->getDimensions();
+            for (uint32_t dim: dims) {
+                varNameWithDims += "[" + std::to_string(dim) + "]";
+            }
+        }
+        str += "\tdeclare " + typeStr + " " + varNameWithDims;
 
         std::string realName = var->getName();
         if (!realName.empty()) {
@@ -119,9 +163,28 @@ void Function::toString(std::string & str)
     for (auto & inst: code.getInsts()) {
 
         if (inst->hasResultValue()) {
-
-            // 局部变量和临时变量需要输出declare语句
-            str += "\tdeclare " + inst->getType()->toString() + " " + inst->getIRName() + "\n";
+            // 修复临时变量declare格式
+            std::string typeStr = inst->getType()->toString();
+            std::string varNameWithDims = inst->getIRName();
+            if (inst->getType()->isArrayType()) {
+                const ArrayType * arrType = static_cast<const ArrayType *>(inst->getType());
+                const Type * baseType = arrType->getBaseElementType();
+                typeStr = baseType ? baseType->toString() : "void";
+                // 移除维度信息拼接，保持变量名简洁
+            } else if (inst->getType()->isPointerType()) {
+                // 处理指针类型，确保不包含维度信息
+                const PointerType * ptrType = static_cast<const PointerType *>(inst->getType());
+                const Type * pointeeType = ptrType->getPointeeType();
+                if (pointeeType->isArrayType()) {
+                    // 如果指向数组类型，只显示基本类型
+                    const ArrayType * arrType = static_cast<const ArrayType *>(pointeeType);
+                    const Type * baseType = arrType->getBaseElementType();
+                    typeStr = (baseType ? baseType->toString() : "void") + "*";
+                } else {
+                    typeStr = pointeeType->toString() + "*";
+                }
+            }
+            str += "\tdeclare " + typeStr + " " + varNameWithDims + "\n";
         }
     }
 

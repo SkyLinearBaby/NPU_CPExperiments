@@ -1,12 +1,7 @@
 grammar MiniC;
 
-// 词法规则名总是以大写字母开头
-
-// 语法规则名总是以小写字母开头
-
-// 每个非终结符尽量多包含闭包、正闭包或可选符等的EBNF范式描述
-
-// 若非终结符由多个产生式组成，则建议在每个产生式的尾部追加# 名称来区分，详细可查看非终结符statement的描述
+// 词法规则名总是以大写字母开头 语法规则名总是以小写字母开头 每个非终结符尽量多包含闭包、正闭包或可选符等的EBNF范式描述 若非终结符由多个产生式组成，则建议在每个产生式的尾部追加#
+// 名称来区分，详细可查看非终结符statement的描述
 
 // 语法规则描述：EBNF范式
 
@@ -25,14 +20,14 @@ blockItemList: blockItem+;
 // 每个Item可以是一个语句，或者变量声明语句
 blockItem: statement | varDecl;
 
-// 变量声明，目前不支持变量含有初值
+// 变量声明，目前支持变量含有初值或数组初始化
 varDecl: basicType varDef (T_COMMA varDef)* T_SEMICOLON;
 
 // 基本类型
 basicType: T_INT | T_BOOL;
 
 // 变量定义
-varDef: T_ID (T_ASSIGN expr)?;
+varDef: T_ID (arrayDims)? (T_ASSIGN (arrayInit | expr))?;
 
 // 语句支持return、赋值、if-else、while、break和continue语句
 statement:
@@ -88,21 +83,37 @@ primaryExp: T_L_PAREN expr T_R_PAREN | T_DIGIT | lVal;
 realParamList: expr (T_COMMA expr)*;
 
 // 左值表达式
-lVal: T_ID;
+lVal: T_ID (arrayAccess)*;
 
 // 形参列表
 formalParamList: formalParam (T_COMMA formalParam)*;
 
 // 形参定义
-formalParam: basicType T_ID;
+formalParam: basicType T_ID (arrayDims)?;
 
-// 用正规式来进行词法规则的描述
+// 递归定义数组初始化，允许多维数组初始化和空元素
+arrayInit: T_L_BRACE arrayInitElements? T_R_BRACE;
+
+// 非空元素序列
+arrayInitElements: (arrayInit | expr) (
+		T_COMMA (arrayInit | expr)
+	)*;
+
+// 数组维度
+arrayDims: (T_L_BRACKET expr? T_R_BRACKET)+;
+
+// 数组访问
+arrayAccess: T_L_BRACKET expr T_R_BRACKET;
+
+// 词法规则
 
 T_L_PAREN: '(';
 T_R_PAREN: ')';
 T_SEMICOLON: ';';
 T_L_BRACE: '{';
 T_R_BRACE: '}';
+T_L_BRACKET: '[';
+T_R_BRACKET: ']';
 
 T_ASSIGN: '=';
 T_COMMA: ',';
@@ -128,7 +139,7 @@ T_AND: '&&';
 T_OR: '||';
 T_NOT: '!';
 
-// 要注意关键字同样也属于T_ID，因此必须放在T_ID的前面，否则会识别成T_ID
+// 关键字必须放在T_ID前面，避免被误识别为标识符
 T_RETURN: 'return';
 T_INT: 'int';
 T_VOID: 'void';
@@ -148,5 +159,6 @@ T_DIGIT:
 
 /* 空白符丢弃 */
 WS: [ \r\n\t]+ -> skip;
-/*忽略注释 */
+/* 忽略注释 */
 LINE_COMMENT: '//' ~[\r\n]* -> skip;
+BLOCK_COMMENT: '/*' .*? '*/' -> skip;

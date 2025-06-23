@@ -23,6 +23,7 @@
 #include "Value.h"
 #include "Type.h"
 #include "Types/IntegerType.h"
+#include "Types/ArrayType.h"
 
 #define Instanceof(res, type, var) auto res = dynamic_cast<type>(var)
 
@@ -579,14 +580,16 @@ std::any MiniCCSTVisitor::visitPrimaryExp(MiniCParser::PrimaryExpContext * ctx)
 
 std::any MiniCCSTVisitor::visitLVal(MiniCParser::LValContext * ctx)
 {
-    // 识别文法产生式：lVal: T_ID;
-    // 获取ID的名字
     auto varId = ctx->T_ID()->getText();
-
-    // 获取行号
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
-
-    return ast_node::New(varId, lineNo);
+    ast_node * node = ast_node::New(varId, lineNo);
+    if (!ctx->arrayAccess().empty()) {
+        for (auto * accessCtx: ctx->arrayAccess()) {
+            auto * index_node = std::any_cast<ast_node *>(visitArrayAccess(accessCtx));
+            node = ast_node::New(ast_operator_type::AST_OP_ARRAY_ACCESS, node, index_node, nullptr);
+        }
+    }
+    return node;
 }
 
 std::any MiniCCSTVisitor::visitVarDecl(MiniCParser::VarDeclContext * ctx)
@@ -630,24 +633,36 @@ std::any MiniCCSTVisitor::visitVarDecl(MiniCParser::VarDeclContext * ctx)
 
 std::any MiniCCSTVisitor::visitVarDef(MiniCParser::VarDefContext * ctx)
 {
-    // varDef: T_ID (T_ASSIGN expr)?;
-
     auto varId = ctx->T_ID()->getText();
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
-
-    // 创建变量ID节点
     ast_node * id_node = ast_node::New(varId, lineNo);
-
-    // 如果有初始化表达式
-    if (ctx->T_ASSIGN() && ctx->expr()) {
-        // 创建初始化表达式节点
-        ast_node * init_node = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
-
-        // 创建一个AST_OP_VAR_INIT类型的节点，其子节点为变量ID和初始化表达式
-        return ast_node::New(ast_operator_type::AST_OP_VAR_INIT, id_node, init_node, nullptr);
+    ast_node * array_dims_node = nullptr;
+    if (ctx->arrayDims()) {
+        array_dims_node = std::any_cast<ast_node *>(visitArrayDims(ctx->arrayDims()));
     }
-
-    return id_node;
+    ast_node * init_node = nullptr;
+    if (ctx->T_ASSIGN()) {
+        if (ctx->arrayInit()) {
+            init_node = std::any_cast<ast_node *>(visitArrayInit(ctx->arrayInit()));
+        } else if (ctx->expr()) {
+            init_node = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
+        }
+    }
+    if (array_dims_node) {
+        // 是数组变量
+        auto * array_var_node = create_contain_node(ast_operator_type::AST_OP_ARRAY_DECL);
+        array_var_node->insert_son_node(id_node);
+        array_var_node->insert_son_node(array_dims_node);
+        if (init_node)
+            array_var_node->insert_son_node(init_node);
+        return array_var_node;
+    } else if (init_node) {
+        // 普通变量带初始化
+        return ast_node::New(ast_operator_type::AST_OP_VAR_INIT, id_node, init_node, nullptr);
+    } else {
+        // 普通变量
+        return id_node;
+    }
 }
 
 std::any MiniCCSTVisitor::visitBasicType(MiniCParser::BasicTypeContext * ctx)
@@ -772,35 +787,142 @@ std::any MiniCCSTVisitor::visitFormalParam(MiniCParser::FormalParamContext * ctx
     std::string paramName = ctx->T_ID()->getText();
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
 
-    // 创建形参节点
+    // 创建形参节点（统一结构）
     auto * paramNode = create_contain_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
     paramNode->line_no = lineNo;
 
-    // 设置形参的类型
-    if (typeAttr.type == BasicType::TYPE_INT) {
-        paramNode->type = IntegerType::getTypeInt();
-    } else if (typeAttr.type == BasicType::TYPE_BOOL) {
-        paramNode->type = IntegerType::getTypeBool();
+    if (ctx->arrayDims()) {
+        // 创建类型节点
+        auto * typeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
+        typeNode->line_no = typeAttr.lineno;
+        if (typeAttr.type == BasicType::TYPE_INT) {
+            typeNode->type = IntegerType::getTypeInt();
+            typeNode->name = "i32";
+        } else if (typeAttr.type == BasicType::TYPE_BOOL) {
+            typeNode->type = IntegerType::getTypeBool();
+            typeNode->name = "i1";
+        } else {
+            typeNode->type = VoidType::getType();
+            typeNode->name = "void";
+        }
+
+        // 构建 array-decl 节点
+        auto * arrayDeclNode = create_contain_node(ast_operator_type::AST_OP_ARRAY_DECL);
+        arrayDeclNode->insert_son_node(typeNode); // 先插入类型节点
+
+        // 变量名节点
+        auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);
+        nameNode->line_no = lineNo;
+        nameNode->name = paramName;
+        arrayDeclNode->insert_son_node(nameNode);
+
+        // 维度节点
+        auto * dimNode = std::any_cast<ast_node *>(visitArrayDims(ctx->arrayDims()));
+        arrayDeclNode->insert_son_node(dimNode);
+
+        std::vector<uint32_t> dims;
+        for (auto * dim: dimNode->sons) {
+            if (dim && dim->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+                dims.push_back(dim->integer_val);
+            } else {
+                dims.push_back(0); // 容错处理
+            }
+        }
+        Type * arrayType = IntegerType::getTypeInt();
+        if (dims.size() == 1 && dims[0] == 0) {
+            // 一维且为0，只加一层
+            arrayType = (Type *) ArrayType::get(arrayType, 0);
+        } else {
+            for (int i = dims.size() - 1; i >= 0; --i) {
+                arrayType = (Type *) ArrayType::get(arrayType, dims[i]);
+            }
+        }
+        arrayDeclNode->type = arrayType;
+
+        // formal-param只插入array-decl
+        paramNode->insert_son_node(arrayDeclNode);
     } else {
-        paramNode->type = VoidType::getType();
+        // 普通变量
+        // 创建类型节点
+        auto * typeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
+        typeNode->line_no = typeAttr.lineno;
+        if (typeAttr.type == BasicType::TYPE_INT) {
+            typeNode->type = IntegerType::getTypeInt();
+            typeNode->name = "i32";
+        } else if (typeAttr.type == BasicType::TYPE_BOOL) {
+            typeNode->type = IntegerType::getTypeBool();
+            typeNode->name = "i1";
+        } else {
+            typeNode->type = VoidType::getType();
+            typeNode->name = "void";
+        }
+        // 创建变量名节点
+        auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);
+        nameNode->line_no = lineNo;
+        nameNode->name = paramName;
+        paramNode->insert_son_node(typeNode);
+        paramNode->insert_son_node(nameNode);
     }
-
-    // 创建类型节点
-    auto * typeNode = create_contain_node(ast_operator_type::AST_OP_LEAF_TYPE);
-    typeNode->line_no = typeAttr.lineno;
-    typeNode->type = paramNode->type; // 设置类型节点的类型
-    typeNode->name = (typeAttr.type == BasicType::TYPE_INT)    ? "i32"
-                     : (typeAttr.type == BasicType::TYPE_BOOL) ? "i1"
-                                                               : "void";
-
-    // 创建变量名节点
-    auto * nameNode = create_contain_node(ast_operator_type::AST_OP_LEAF_VAR_ID);
-    nameNode->line_no = lineNo;
-    nameNode->name = paramName;
-
-    // 插入到形参节点
-    paramNode->insert_son_node(typeNode);
-    paramNode->insert_son_node(nameNode);
-
     return paramNode;
+}
+
+// 数组维度
+std::any MiniCCSTVisitor::visitArrayDims(MiniCParser::ArrayDimsContext * ctx)
+{
+    // arrayDims: (T_L_BRACKET expr? T_R_BRACKET)+;
+    auto * dims_node = create_contain_node(ast_operator_type::AST_OP_ARRAY_DIMS);
+    auto exprs = ctx->expr();
+    size_t expr_idx = 0;
+    size_t dims_count = ctx->T_L_BRACKET().size();
+    for (size_t i = 0; i < dims_count; ++i) {
+        // 判断本维度是否有表达式
+        if (expr_idx < exprs.size()) {
+            // 有表达式
+            auto * dim_expr = std::any_cast<ast_node *>(visitExpr(exprs[expr_idx++]));
+            dims_node->insert_son_node(dim_expr);
+        } else {
+            // 空维度，自动补0
+            int64_t lineNo = ctx->T_L_BRACKET(i)->getSymbol()->getLine();
+            auto * zero_dim = ast_node::New(digit_int_attr{0, lineNo});
+            dims_node->insert_son_node(zero_dim);
+        }
+    }
+    return dims_node;
+}
+
+// 数组初始化
+std::any MiniCCSTVisitor::visitArrayInit(MiniCParser::ArrayInitContext * ctx)
+{
+    // arrayInit: T_L_BRACE arrayInitElements? T_R_BRACE;
+    auto * init_node = create_contain_node(ast_operator_type::AST_OP_ARRAY_INIT);
+    if (ctx->arrayInitElements()) {
+        auto elements = std::any_cast<std::vector<ast_node *>>(visitArrayInitElements(ctx->arrayInitElements()));
+        for (auto * elem: elements) {
+            init_node->insert_son_node(elem);
+        }
+    }
+    return init_node;
+}
+
+// 数组初始化元素
+std::any MiniCCSTVisitor::visitArrayInitElements(MiniCParser::ArrayInitElementsContext * ctx)
+{
+    std::vector<ast_node *> elements;
+    size_t total = ctx->children.size();
+    for (size_t i = 0; i < total; ++i) {
+        auto * child = ctx->children[i];
+        if (auto * arrayInit = dynamic_cast<MiniCParser::ArrayInitContext *>(child)) {
+            elements.push_back(std::any_cast<ast_node *>(visitArrayInit(arrayInit)));
+        } else if (auto * expr = dynamic_cast<MiniCParser::ExprContext *>(child)) {
+            elements.push_back(std::any_cast<ast_node *>(visitExpr(expr)));
+        }
+    }
+    return elements;
+}
+
+// 数组访问
+std::any MiniCCSTVisitor::visitArrayAccess(MiniCParser::ArrayAccessContext * ctx)
+{
+    // arrayAccess: T_L_BRACKET expr T_R_BRACKET;
+    return visitExpr(ctx->expr());
 }

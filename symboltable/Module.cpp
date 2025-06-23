@@ -14,7 +14,7 @@
 /// </table>
 ///
 #include "Module.h"
-
+#include "./PointerType.h"
 #include "ScopeStack.h"
 #include "Common.h"
 #include "VoidType.h"
@@ -32,6 +32,17 @@ Module::Module(std::string _name) : name(_name)
     (void) newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
     (void) newFunction("getint", IntegerType::getTypeInt(), {}, true);
     (void) newFunction("getch", IntegerType::getTypeInt(), {}, true);
+    //加入内置函数putarr
+    (void) newFunction("putarray",
+                       VoidType::getType(),
+                       {new FormalParam(IntegerType::getTypeInt(), "n"),
+                        new FormalParam(new PointerType(IntegerType::getTypeInt()), "a")},
+                       true);
+    //加入内置函数getarray
+    (void) newFunction("getarray",
+                       IntegerType::getTypeInt(),
+                       {new FormalParam(new PointerType(IntegerType::getTypeInt()), "a")},
+                       true);
 }
 
 /// @brief 进入作用域，如进入函数体块、语句块等

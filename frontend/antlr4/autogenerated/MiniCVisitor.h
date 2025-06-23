@@ -83,6 +83,14 @@ public:
 
     virtual std::any visitFormalParam(MiniCParser::FormalParamContext *context) = 0;
 
+    virtual std::any visitArrayInit(MiniCParser::ArrayInitContext *context) = 0;
+
+    virtual std::any visitArrayInitElements(MiniCParser::ArrayInitElementsContext *context) = 0;
+
+    virtual std::any visitArrayDims(MiniCParser::ArrayDimsContext *context) = 0;
+
+    virtual std::any visitArrayAccess(MiniCParser::ArrayAccessContext *context) = 0;
+
 
 };
 

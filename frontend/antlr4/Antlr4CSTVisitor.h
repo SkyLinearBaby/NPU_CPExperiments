@@ -201,4 +201,10 @@ protected:
     /// @param ctx CST上下文
     /// @return AST的节点
     std::any visitRelationalExp(MiniCParser::RelationalExpContext * ctx) override;
+
+    /// @brief 新增：数组相关visitor声明
+    virtual std::any visitArrayDims(MiniCParser::ArrayDimsContext * ctx) override;
+    virtual std::any visitArrayInit(MiniCParser::ArrayInitContext * ctx) override;
+    virtual std::any visitArrayInitElements(MiniCParser::ArrayInitElementsContext * ctx) override;
+    virtual std::any visitArrayAccess(MiniCParser::ArrayAccessContext * ctx) override;
 };

@@ -86,9 +86,10 @@ enum class IRInstOperator : std::int8_t {
     IRINST_OP_ZEXT,
 
     /* 后续可追加其他的IR指令 */
-
-    /// @brief 最大指令码，也是无效指令
-    IRINST_OP_MAX
+    IRINST_OP_STORE,
+    IRINST_OP_LOAD,
+        /// @brief 最大指令码，也是无效指令
+        IRINST_OP_MAX
 };
 
 ///
